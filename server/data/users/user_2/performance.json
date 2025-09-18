@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1757756087075.0083,
+    "performanceType": "network_request",
+    "performanceData": {
+      "url": "/api/products/search",
+      "responseTime": 250,
+      "statusCode": 200,
+      "networkType": "wifi"
+    },
+    "timestamp": "2025-09-13T09:34:47.075Z"
+  }
+]

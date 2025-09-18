@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yapay Zeka - Huglu Admin</title>
+    <link rel="stylesheet" href="../style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <div class="logo">
+            <img src="../../assets/logo.jpg" alt="Logo" style="width:28px;height:28px;object-fit:cover;border-radius:6px;">
+            <span>Huglu Admin</span>
+        </div>
+        <nav class="nav-menu">
+            <a href="dashboard.html" class="nav-item" data-external="true"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
+            <a href="chatbot.html" class="nav-item" data-external="true"><i class="fas fa-robot"></i><span>Chatbot</span></a>
+            <a href="ai.html" class="nav-item active" data-external="true"><i class="fas fa-brain"></i><span>Yapay Zeka</span></a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                <h1 id="pageTitle">Yapay Zeka Araçları</h1>
+            </div>
+        </header>
+
+        <div class="content-section">
+            <div class="settings-grid">
+                <div class="setting-card">
+                    <h3>Model Sağlayıcıları</h3>
+                    <div class="setting-item"><label>Varsayılan Model</label>
+                        <select id="aiDefaultModel" class="btn-secondary"><option>gpt-4o-mini</option><option>gpt-4o</option><option>local:gguf</option></select>
+                    </div>
+                    <div class="setting-item"><label>API Anahtarı</label>
+                        <input id="aiApiKey" type="password" placeholder="sk-..." />
+                    </div>
+                    <div class="setting-item"><label>Sunucu URL</label>
+                        <input id="aiServerUrl" type="text" placeholder="https://api.openai.com/v1" />
+                    </div>
+                    <div class="setting-item"><button class="btn-primary" onclick="saveAiSettings()"><i class="fas fa-save"></i> Kaydet</button></div>
+                </div>
+                <div class="setting-card">
+                    <h3>Ön ayarlar</h3>
+                    <p>Chatbot sayfasındaki model listesi ve sistem mesajı bu ayarlardan beslenecek şekilde genişletilebilir.</p>
+                </div>
+            </div>
+
+            <div class="setting-card" style="margin-top:20px;">
+                <h3>LLM Chat (OpenWebUI benzeri)</h3>
+                <div style="display:grid; grid-template-columns: 280px 1fr; gap:16px;">
+                    <div>
+                        <div class="info-card" style="margin-bottom:12px;">
+                            <p style="margin-bottom:8px; font-weight:600;">Model ve Parametreler</p>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <select id="llmModel" class="btn-secondary">
+                                    <option value="gpt-4o-mini">gpt-4o-mini</option>
+                                    <option value="gpt-4o">gpt-4o</option>
+                                    <option value="local:gguf">local:gguf</option>
+                                </select>
+                                <input id="llmSystem" class="btn-secondary" type="text" placeholder="Sistem mesajı (isteğe bağlı)" />
+                                <div style="display:flex; gap:8px;">
+                                    <input id="llmTemp" class="btn-secondary" type="number" step="0.1" min="0" max="2" value="0.7" style="width:100%"/>
+                                    <input id="llmMaxTokens" class="btn-secondary" type="number" step="50" min="64" value="512" style="width:100%"/>
+                                </div>
+                                <button class="btn-secondary" onclick="clearChat()"><i class="fas fa-broom"></i> Sohbeti Temizle</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div id="chatWindow" class="table-container" style="height:420px; overflow:auto; padding:16px; background:#0f172a; color:#e2e8f0;">
+                            <div id="chatMessages" style="display:flex; flex-direction:column; gap:10px;"></div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                            <input id="chatInput" class="btn-secondary" type="text" placeholder="Mesaj yazın..." style="flex:1;"/>
+                            <button class="btn-primary" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i> Gönder</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../script.js?v=remote-2025"></script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('collapsed'); });
+        if (typeof loadAiSettings === 'function') { loadAiSettings(); }
+    </script>
+</body>
+</html>
+
+

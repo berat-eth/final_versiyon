@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1757756087068.4458,
+    "behaviorType": "scroll_behavior",
+    "behaviorData": {
+      "screenName": "ProductList",
+      "scrollEvents": 12,
+      "averageScrollSpeed": 2.5
+    },
+    "timestamp": "2025-09-13T09:34:47.068Z"
+  }
+]

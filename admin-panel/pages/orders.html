@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siparişler - Huglu Admin</title>
+    <link rel="stylesheet" href="../style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <div class="logo">
+            <img src="../../assets/logo.jpg" alt="Logo" style="width:28px;height:28px;object-fit:cover;border-radius:6px;">
+            <span>Huglu Admin</span>
+        </div>
+        <nav class="nav-menu">
+            <a href="dashboard.html" class="nav-item" data-external="true"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
+            <a href="users.html" class="nav-item" data-external="true"><i class="fas fa-users"></i><span>Kullanıcılar</span></a>
+            <a href="orders.html" class="nav-item active" data-external="true"><i class="fas fa-shopping-cart"></i><span>Siparişler</span></a>
+            <a href="products.html" class="nav-item" data-external="true"><i class="fas fa-box"></i><span>Ürünler</span></a>
+            <a href="chatbot.html" class="nav-item" data-external="true"><i class="fas fa-robot"></i><span>Chatbot</span></a>
+            <a href="ai.html" class="nav-item" data-external="true"><i class="fas fa-brain"></i><span>Yapay Zeka</span></a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                <h1 id="pageTitle">Sipariş Yönetimi</h1>
+            </div>
+        </header>
+
+        <div class="content-section" id="orders-section">
+            <div class="section-header">
+                <h2>Siparişler</h2>
+                <div class="header-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
+                    <select id="orderStatusFilter" class="btn-secondary">
+                        <option value="">Tüm Durumlar</option>
+                        <option value="pending">Beklemede</option>
+                        <option value="processing">İşleniyor</option>
+                        <option value="shipped">Kargoda</option>
+                        <option value="delivered">Teslim Edildi</option>
+                        <option value="cancelled">İptal</option>
+                    </select>
+                    <input type="date" id="orderDateFrom" class="btn-secondary"/>
+                    <input type="date" id="orderDateTo" class="btn-secondary"/>
+                    <input type="text" id="orderUserQuery" class="btn-secondary" placeholder="Kullanıcı adı/email" />
+                    <button class="btn-primary" onclick="applyOrdersFilter()"><i class="fas fa-filter"></i> Filtrele</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>ID</th><th>Müşteri</th><th>Ürünler</th><th>Tutar</th><th>Durum</th><th>Tarih</th><th>İşlemler</th></tr>
+                    </thead>
+                    <tbody id="ordersTableBody"><tr><td colspan="7" class="loading">Yükleniyor...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal hidden" id="orderModal"><div class="modal-content"><div class="modal-header"><h3>Sipariş Detayları</h3><button class="modal-close" onclick="closeOrderModal()"><i class="fas fa-times"></i></button></div><div class="modal-body" id="orderModalBody"></div></div></div>
+
+    <script src="../script.js?v=remote-2025"></script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('collapsed'); });
+        if (typeof refreshOrders === 'function') { refreshOrders(); }
+    </script>
+</body>
+</html>
+
+

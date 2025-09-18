@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Huğlu Outdoor",
+    "slug": "huglu-outdoor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/iconns.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/iconns.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Bu uygulama güvenli giriş için Face ID kullanır"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/iconns.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "NFC",
+        "POST_NOTIFICATIONS"
+      ],
+      "package": "com.berat_3322.hugluoutdoor"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bb72d05a-27a4-4f48-8cec-872092027485"
+      }
+    },
+    "plugins": [
+      "expo-location",
+      "expo-local-authentication",
+      "expo-image-picker",
+      "expo-secure-store",
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "NFC kullanımı için gerekli"
+        }
+      ],
+      [
+        "expo-notifications",
+        {}
+      ]
+    ]
+  }
+}

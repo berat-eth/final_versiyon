@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huglu Outdoor - Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="logo">
+            <img src="../assets/logo.jpg" alt="Logo" style="width:28px;height:28px;object-fit:cover;border-radius:6px;">
+            <span>Huglu Admin</span>
+        </div>
+        
+        <nav class="nav-menu">
+            <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#users" class="nav-item" data-section="users">
+                <i class="fas fa-users"></i>
+                <span>Kullanıcılar</span>
+            </a>
+            <a href="#orders" class="nav-item" data-section="orders">
+                <i class="fas fa-shopping-cart"></i>
+                <span>Siparişler</span>
+            </a>
+            <a href="#carts" class="nav-item" data-section="carts">
+                <i class="fas fa-shopping-basket"></i>
+                <span>Sepetler</span>
+            </a>
+            <a href="#products" class="nav-item" data-section="products">
+                <i class="fas fa-box"></i>
+                <span>Ürünler</span>
+            </a>
+            <a href="#campaigns" class="nav-item" data-section="campaigns">
+                <i class="fas fa-bullhorn"></i>
+                <span>Kampanyalar</span>
+            </a>
+            <a href="#dealership" class="nav-item" data-section="dealership">
+                <i class="fas fa-briefcase"></i>
+                <span>Bayilik Başvuruları</span>
+            </a>
+            <a href="#wallets" class="nav-item" data-section="wallets">
+                <i class="fas fa-wallet"></i>
+                <span>Müşteri Bakiyeleri</span>
+            </a>
+            <a href="#segments" class="nav-item" data-section="segments">
+                <i class="fas fa-users-cog"></i>
+                <span>Müşteri Segmentleri</span>
+            </a>
+            <a href="#personalization" class="nav-item" data-section="personalization">
+                <i class="fas fa-magic"></i>
+                <span>Kişiselleştirme</span>
+            </a>
+            <a href="#analytics" class="nav-item" data-section="analytics">
+                <i class="fas fa-chart-line"></i>
+                <span>Analitik</span>
+            </a>
+            <a href="#live" class="nav-item" data-section="live">
+                <i class="fas fa-broadcast-tower"></i>
+                <span>Canlı Veriler</span>
+            </a>
+            <a href="#tenants" class="nav-item" data-section="tenants">
+                <i class="fas fa-building"></i>
+                <span>Tenants</span>
+            </a>
+            <a href="pages/ai.html" class="nav-item" data-external="true">
+                <i class="fas fa-brain"></i>
+                <span>Yapay Zeka</span>
+            </a>
+            <a href="#chatbot" class="nav-item" data-section="chatbot">
+                <i class="fas fa-robot"></i>
+                <span>Chatbot</span>
+            </a>
+            <a href="#settings" class="nav-item" data-section="settings">
+                <i class="fas fa-cog"></i>
+                <span>Ayarlar</span>
+            </a>
+            <a href="#security" class="nav-item" data-section="security">
+                <i class="fas fa-shield-alt"></i>
+                <span>Güvenlik</span>
+            </a>
+            <a href="#custom-production" class="nav-item" data-section="custom-production">
+                <i class="fas fa-industry"></i>
+                <span>Özel Üretim</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 id="pageTitle">Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Admin</span>
+                    <button class="btn-secondary" style="margin-left:10px" onclick="logoutAdmin()">
+                        <i class="fas fa-sign-out-alt"></i> Çıkış
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Section -->
+        <div class="content-section" id="dashboard-section">
+            <div class="section-header">
+                <h2 style="margin: 0;">Dashboard Özeti</h2>
+                <div class="header-actions">
+                    <select id="dashboardRange" class="btn-secondary" onchange="refreshDashboardWithRange()">
+                        <option value="3">Son 3 Gün</option>
+                        <option value="7" selected>Son 7 Gün</option>
+                        <option value="30">Son 30 Gün</option>
+                        <option value="90">Son 90 Gün</option>
+                    </select>
+                    <button class="btn-primary" onclick="refreshDashboard()">
+                        <i class="fas fa-sync"></i> Yenile
+                    </button>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon users">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalUsers">-</h3>
+                        <p>Toplam Kullanıcı</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon products">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalProducts">-</h3>
+                        <p>Toplam Ürün</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon orders">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalOrders">-</h3>
+                        <p>Toplam Sipariş</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon revenue">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="monthlyRevenue">-</h3>
+                        <p>Aylık Gelir</p>
+                    </div>
+                </div>
+
+                <!-- New: Stock summary -->
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #ffb74d, #ff9800);">
+                        <i class="fas fa-warehouse"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalLowStock">-</h3>
+                        <p>Düşük Stoklu Ürün</p>
+                    </div>
+                </div>
+
+                <!-- New: Category count -->
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #26c6da, #00acc1);">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalCategories">-</h3>
+                        <p>Toplam Kategori</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-charts">
+                <div class="charts-grid">
+                    <!-- Sales Chart -->
+                    <div class="chart-card">
+                        <h3>Son 7 Günlük Satışlar</h3>
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                    
+                    <!-- Orders Status Chart -->
+                    <div class="chart-card">
+                        <h3>Sipariş Durumları</h3>
+                        <canvas id="ordersChart"></canvas>
+                    </div>
+                    
+                    <!-- Monthly Revenue Chart -->
+                    <div class="chart-card">
+                        <h3>Aylık Gelir Trendi</h3>
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                    
+                    <!-- Top Products Chart -->
+                    <div class="chart-card">
+                        <h3>En Çok Satan Ürünler</h3>
+                        <canvas id="productsChart"></canvas>
+                    </div>
+
+                    <!-- New: Category distribution -->
+                    <div class="chart-card">
+                        <h3>Kategori Dağılımı</h3>
+                        <canvas id="dashboardCategoryChart"></canvas>
+                    </div>
+
+                    <!-- New: Stock status overview -->
+                    <div class="chart-card">
+                        <h3>Stok Durumu</h3>
+                        <canvas id="dashboardStockChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="table-container" style="margin-top: 20px;">
+                    <h3>En Çok Sipariş Veren Kullanıcılar</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Kullanıcı</th>
+                                <th>Email</th>
+                                <th>Telefon</th>
+                                <th>Sipariş Sayısı</th>
+                                <th>Toplam Harcama</th>
+                                <th>Son Sipariş</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topCustomersTableBody">
+                            <tr>
+                                <td colspan="6" class="loading">Yükleniyor...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="activity-section">
+                    <div class="chart-card">
+                        <h3>Son Aktiviteler</h3>
+                        <div class="activity-list" id="recentActivity">
+                            <div class="activity-item">
+                                <i class="fas fa-user-plus"></i>
+                                <span>Yeni kullanıcı kaydı</span>
+                                <small>2 dakika önce</small>
+                            </div>
+                            <div class="activity-item">
+                                <i class="fas fa-shopping-bag"></i>
+                                <span>Yeni sipariş alındı</span>
+                                <small>15 dakika önce</small>
+                            </div>
+                            <div class="activity-item">
+                                <i class="fas fa-truck"></i>
+                                <span>Sipariş kargoya verildi</span>
+                                <small>1 saat önce</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Section -->
+        <div class="content-section hidden" id="users-section">
+            <div class="section-header">
+                <h2>Kullanıcı Yönetimi</h2>
+                <button class="btn-primary" onclick="refreshUsers()">
+                    <i class="fas fa-sync"></i> Yenile
+                </button>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Ad</th>
+                            <th>Email</th>
+                            <th>Telefon</th>
+                            <th>Tenant</th>
+                            <th>Bakiye</th>
+                            <th>Kuponlar</th>
+                            <th>Kayıt Tarihi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td colspan="8" class="loading">Yükleniyor...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders Section -->
+        <div class="content-section hidden" id="orders-section">
+            <div class="section-header">
+                <h2>Sipariş Yönetimi</h2>
+                <button class="btn-primary" onclick="refreshOrders()">
+                    <i class="fas fa-sync"></i> Yenile
+                </button>
+                <div class="header-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
+                    <select id="orderStatusFilter" class="btn-secondary">
+                        <option value="">Tüm Durumlar</option>
+                        <option value="pending">Beklemede</option>
+                        <option value="processing">İşleniyor</option>
+                        <option value="shipped">Kargoda</option>
+                        <option value="delivered">Teslim Edildi</option>
+                        <option value="cancelled">İptal</option>
+                    </select>
+                    <input type="date" id="orderDateFrom" class="btn-secondary"/>
+                    <input type="date" id="orderDateTo" class="btn-secondary"/>
+                    <input type="text" id="orderUserQuery" class="btn-secondary" placeholder="Kullanıcı adı/email" />
+                    <button class="btn-primary" onclick="applyOrdersFilter()"><i class="fas fa-filter"></i> Filtrele</button>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Müşteri</th>
+                            <th>Ürünler</th>
+                            <th>Tutar</th>
+                            <th>Durum</th>
+                            <th>Tarih</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        <tr>
+                            <td colspan="7" class="loading">Yükleniyor...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Carts Section -->
+        <div class="content-section hidden" id="carts-section">
+            <div class="section-header">
+                <h2>Sepetler</h2>
+                <button class="btn-primary" onclick="refreshCarts()">
+                    <i class="fas fa-sync"></i> Yenile
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Kullanıcı</th>
+                            <th>Email</th>
+                            <th>Kalem Sayısı</th>
+                            <th>Toplam Adet</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cartsTableBody">
+                        <tr><td colspan="5" class="loading">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Cart Detail Modal -->
+        <div class="modal hidden" id="cartModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Sepet Detayı</h3>
+                    <button class="modal-close" onclick="closeModal('cartModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" id="cartModalBody"></div>
+            </div>
+        </div>
+
+        <!-- Backend Health Check Modal -->
+        <div class="modal hidden" id="backendHealthModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Sistem Sağlık Kontrolü</h3>
+                    <button class="modal-close" onclick="closeModal('backendHealthModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="backendHealthResults">
+                        <div class="loading">Kontroller yapılıyor...</div>
+                    </div>
+                    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+                        <button class="btn-secondary" onclick="window.runBackendHealthAudit && window.runBackendHealthAudit()">
+                            <i class="fas fa-sync"></i> Yeniden Tara
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sync Log Modal -->
+        <div class="modal hidden" id="syncLogModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Son Senkronlar</h3>
+                    <button class="modal-close" onclick="closeModal('syncLogModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="syncLogsContainer"><div class="loading">Yükleniyor...</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Section -->
+        <div class="content-section hidden" id="products-section">
+            <div class="section-header">
+                <h2>Ürün Yönetimi</h2>
+                <div class="header-actions">
+                    <button class="btn-primary" onclick="openCreateProductModal()">
+                        <i class="fas fa-plus"></i> Yeni Ürün
+                    </button>
+                    <button class="btn-secondary" onclick="refreshProducts()">
+                        <i class="fas fa-sync"></i> Yenile
+                    </button>
+                    <button class="btn-primary" onclick="triggerProductSync()">
+                        <i class="fas fa-sync-alt"></i> XML Sync
+                    </button>
+                    <button class="btn-secondary" onclick="openModal('syncLogModal')">
+                        <i class="fas fa-list"></i> Son Senkronlar
+                    </button>
+                </div>
+            </div>
+            
+            <div class="products-grid">
+                <div class="product-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon products">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalProductsCount">-</h3>
+                            <p>Toplam Ürün</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalVariationsCount">-</h3>
+                            <p>Varyasyonlu Ürün</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                            <i class="fas fa-warehouse"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="lowStockCount">-</h3>
+                            <p>Düşük Stok</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Ürün Adı</th>
+                                <th>Kategori</th>
+                                <th>Fiyat</th>
+                                <th>Stok</th>
+                                <th>Varyasyon</th>
+                                <th>Son Güncelleme</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <tr>
+                                <td colspan="8" class="loading">Yükleniyor...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Detail Section -->
+        <div class="content-section hidden" id="product-detail-section">
+            <div class="section-header">
+                <button class="btn-secondary" onclick="goBackToProducts()">
+                    <i class="fas fa-arrow-left"></i> Geri Dön
+                </button>
+                <h2 id="productDetailTitle">Ürün Detayları</h2>
+                <div class="header-actions">
+                    <button class="btn-primary" onclick="openCreateProductModal()">
+                        <i class="fas fa-plus"></i> Yeni Ürün
+                    </button>
+                    <button class="btn-primary" onclick="editProductDetail()">
+                        <i class="fas fa-edit"></i> Düzenle
+                    </button>
+                    <button class="btn-danger" onclick="deleteProductDetail()">
+                        <i class="fas fa-trash"></i> Sil
+                    </button>
+                </div>
+            </div>
+            
+            <div class="product-detail-container">
+                <div class="product-detail-main">
+                    <div class="product-detail-image">
+                        <img id="productDetailImage" src="" alt="Ürün Resmi" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMmY1Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='">
+                    </div>
+                    
+                    <div class="product-detail-info">
+                        <h1 id="productDetailName">Ürün Adı</h1>
+                        <div class="product-detail-meta">
+                            <span class="product-id">ID: <span id="productDetailId">-</span></span>
+                            <span class="product-category">Kategori: <span id="productDetailCategory">-</span></span>
+                            <span class="product-brand">Marka: <span id="productDetailBrand">-</span></span>
+                        </div>
+                        
+                        <div class="product-detail-price">
+                            <span class="price-label">Fiyat:</span>
+                            <span class="price-value" id="productDetailPrice">-</span>
+                        </div>
+                        
+                        <div class="product-detail-stock">
+                            <span class="stock-label">Stok:</span>
+                            <span class="stock-value" id="productDetailStock">-</span>
+                        </div>
+                        
+                        <div class="product-detail-description">
+                            <h3>Açıklama</h3>
+                            <p id="productDetailDescription">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="product-detail-tabs">
+                    <div class="tab-buttons">
+                        <button class="tab-button active" onclick="showProductTab('variations')">
+                            <i class="fas fa-layer-group"></i> Varyasyonlar
+                        </button>
+                        <button class="tab-button" onclick="showProductTab('orders')">
+                            <i class="fas fa-shopping-cart"></i> Siparişler
+                        </button>
+                        <button class="tab-button" onclick="showProductTab('analytics')">
+                            <i class="fas fa-chart-line"></i> Analitik
+                        </button>
+                    </div>
+                    
+                    <div class="tab-content">
+                        <div id="variations-tab" class="tab-panel active">
+                            <h3>Ürün Varyasyonları</h3>
+                            <div id="productVariationsList">
+                                <p class="no-data">Varyasyon bulunamadı</p>
+                            </div>
+                        </div>
+                        
+                        <div id="orders-tab" class="tab-panel">
+                            <h3>Bu Ürünle İlgili Siparişler</h3>
+                            <div id="productOrdersList">
+                                <p class="no-data">Sipariş bulunamadı</p>
+                            </div>
+                        </div>
+                        
+                        <div id="analytics-tab" class="tab-panel">
+                            <h3>Ürün Analitikleri</h3>
+                            <div class="analytics-grid">
+                                <div class="analytics-card">
+                                    <h4>Toplam Satış</h4>
+                                    <span id="totalSales">-</span>
+                                </div>
+                                <div class="analytics-card">
+                                    <h4>Toplam Gelir</h4>
+                                    <span id="totalRevenue">-</span>
+                                </div>
+                                <div class="analytics-card">
+                                    <h4>Ortalama Puan</h4>
+                                    <span id="averageRating">-</span>
+                                </div>
+                                <div class="analytics-card">
+                                    <h4>Görüntülenme</h4>
+                                    <span id="viewCount">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campaigns Section -->
+        <div class="content-section hidden" id="campaigns-section">
+            <div class="section-header">
+                <h2>Kampanya Yönetimi</h2>
+                <div class="header-actions">
+                    <button class="btn-primary" onclick="openCreateCampaignModal()">
+                        <i class="fas fa-plus"></i> Yeni Kampanya
+                    </button>
+                    <button class="btn-secondary" onclick="openCreateFlashDealModal()">
+                        <i class="fas fa-bolt"></i> Flash İndirim
+                    </button>
+                    <input id="campaignSearch" class="btn-secondary" type="text" placeholder="Ara (ad/açıklama)" onkeydown="if(event.key==='Enter'){refreshCampaigns()}"/>
+                    <select id="campaignStatusFilter" class="btn-secondary" onchange="refreshCampaigns()">
+                        <option value="">Tüm Durumlar</option>
+                        <option value="active">Aktif</option>
+                        <option value="paused">Durduruldu</option>
+                        <option value="ended">Bitti</option>
+                    </select>
+                    <select id="campaignPageSize" class="btn-secondary" onchange="refreshCampaigns()">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Campaign Tabs -->
+            <div class="campaign-tabs">
+                <div class="tab-buttons">
+                    <button class="tab-button active" onclick="showCampaignTab('regular')">
+                        <i class="fas fa-bullhorn"></i> Normal Kampanyalar
+                    </button>
+                    <button class="tab-button" onclick="showCampaignTab('flash')">
+                        <i class="fas fa-bolt"></i> Flash İndirimleri
+                    </button>
+                </div>
+                
+                <div class="tab-content">
+                    <!-- Regular Campaigns Tab -->
+                    <div id="regular-campaigns-tab" class="tab-panel active">
+            
+            <div class="campaigns-grid">
+                <div class="campaign-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalCampaignsCount">-</h3>
+                            <p>Toplam Kampanya</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="activeCampaignsCount">-</h3>
+                            <p>Aktif Kampanya</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="campaignUsageCount">-</h3>
+                            <p>Toplam Kullanım</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Kampanya Adı</th>
+                                <th>Tür</th>
+                                <th>Durum</th>
+                                <th>Hedef Segment</th>
+                                <th>İndirim</th>
+                                <th>Kullanım</th>
+                                <th>Başlangıç</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="campaignsTableBody">
+                            <tr>
+                                <td colspan="9" class="loading">Yükleniyor...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="table-footer" style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                        <div id="campaignsMeta"></div>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <button class="btn-secondary" onclick="prevCampaignPage()"><i class="fas fa-chevron-left"></i></button>
+                            <span id="campaignsPageInfo">-</span>
+                            <button class="btn-secondary" onclick="nextCampaignPage()"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                    </div>
+                    
+                    <!-- Flash Deals Tab -->
+                    <div id="flash-campaigns-tab" class="tab-panel">
+                        <div class="flash-deals-grid">
+                            <div class="flash-deals-stats">
+                                <div class="stat-card">
+                                    <div class="stat-icon" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);">
+                                        <i class="fas fa-bolt"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <h3 id="totalFlashDealsCount">-</h3>
+                                        <p>Toplam Flash İndirim</p>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon" style="background: linear-gradient(135deg, #feca57, #ff9ff3);">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <h3 id="activeFlashDealsCount">-</h3>
+                                        <p>Aktif Flash İndirim</p>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon" style="background: linear-gradient(135deg, #48dbfb, #0abde3);">
+                                        <i class="fas fa-percentage"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <h3 id="averageFlashDiscount">-</h3>
+                                        <p>Ortalama İndirim</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>İndirim Adı</th>
+                                            <th>İndirim Türü</th>
+                                            <th>İndirim Değeri</th>
+                                            <th>Hedef</th>
+                                            <th>Başlangıç</th>
+                                            <th>Bitiş</th>
+                                            <th>Durum</th>
+                                            <th>İşlemler</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="flashDealsTableBody">
+                                        <tr>
+                                            <td colspan="9" class="loading">Yükleniyor...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Segments Section -->
+        <div class="content-section hidden" id="segments-section">
+            <div class="section-header">
+                <h2>Müşteri Segmentleri</h2>
+                <div class="header-actions">
+                    <button class="btn-secondary" onclick="createAutomaticSegments()">
+                        <i class="fas fa-robot"></i> Otomatik Oluştur
+                    </button>
+                    <button class="btn-primary" onclick="openCreateSegmentModal()">
+                        <i class="fas fa-plus"></i> Yeni Segment
+                    </button>
+                </div>
+            </div>
+            
+            <div class="segments-grid">
+                <div class="segment-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                            <i class="fas fa-users-cog"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalSegmentsCount">-</h3>
+                            <p>Toplam Segment</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalCustomersInSegments">-</h3>
+                            <p>Segmentteki Müşteri</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Segment Adı</th>
+                                <th>Açıklama</th>
+                                <th>Kriterler</th>
+                                <th>Müşteri Sayısı</th>
+                                <th>Durum</th>
+                                <th>Oluşturulma</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="segmentsTableBody">
+                            <tr>
+                                <td colspan="8" class="loading">Yükleniyor...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Section -->
+        <div class="content-section hidden" id="analytics-section">
+            <div class="section-header">
+                <h2>Analitik ve Raporlar</h2>
+                <div class="header-actions" style="display:flex;gap:8px;align-items:center;">
+                    <select id="analyticsRange" class="btn-secondary" onchange="refreshAnalytics()">
+                        <option value="7">Son 7 Gün</option>
+                        <option value="30" selected>Son 30 Gün</option>
+                        <option value="90">Son 90 Gün</option>
+                    </select>
+                    <button class="btn-primary" onclick="refreshAnalytics()">
+                        <i class="fas fa-sync"></i> Yenile
+                    </button>
+                </div>
+            </div>
+            
+            <div class="analytics-grid">
+                <div class="analytics-charts">
+                    <div class="chart-card">
+                        <h3>Müşteri Segmentasyonu Dağılımı</h3>
+                        <canvas id="segmentDistributionChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Kampanya Performansı</h3>
+                        <canvas id="campaignPerformanceChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Ürün Kategorileri</h3>
+                        <canvas id="categoryDistributionChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Stok Durumu</h3>
+                        <canvas id="stockStatusChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="analytics-tables">
+                    <div class="table-container">
+                        <h3>En Çok Satan Ürünler</h3>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Ürün</th>
+                                    <th>Satış Adedi</th>
+                                    <th>Gelir</th>
+                                    <th>Kategori</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topProductsTableBody">
+                                <tr>
+                                    <td colspan="4" class="loading">Yükleniyor...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="table-container">
+                        <h3>Kampanya Performansı</h3>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kampanya</th>
+                                    <th>Kullanım</th>
+                                    <th>Dönüşüm</th>
+                                    <th>Gelir</th>
+                                </tr>
+                            </thead>
+                            <tbody id="campaignPerformanceTableBody">
+                                <tr>
+                                    <td colspan="4" class="loading">Yükleniyor...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Section -->
+        <div class="content-section hidden" id="security-section">
+            <div class="section-header">
+                <h2>Güvenlik Olayları</h2>
+                <div class="header-actions" style="display:flex;gap:8px;align-items:center;">
+                    <input id="secUserQuery" class="btn-secondary" placeholder="Kullanıcı adı/email"/>
+                    <input id="secIpQuery" class="btn-secondary" placeholder="IP" style="width:160px;"/>
+                    <select id="secRange" class="btn-secondary">
+                        <option value="1">Son 24 Saat</option>
+                        <option value="7" selected>Son 7 Gün</option>
+                        <option value="30">Son 30 Gün</option>
+                    </select>
+                    <button class="btn-primary" onclick="refreshSecurityEvents()"><i class="fas fa-sync"></i> Yenile</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Zaman</th>
+                            <th>Kullanıcı Adı</th>
+                            <th>IP Adresi</th>
+                            <th>Deneme Sayısı</th>
+                            <th>Durum</th>
+                            <th>Detay</th>
+                        </tr>
+                    </thead>
+                    <tbody id="securityTableBody">
+                        <tr><td colspan="6" class="loading">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Dealership Applications Section -->
+        <div class="content-section hidden" id="dealership-section">
+            <div class="section-header">
+                <h2>Bayilik Başvuruları</h2>
+                <div class="header-actions" style="gap:8px;display:flex;align-items:center;flex-wrap:wrap;">
+                    <label>Aylık Ciro Min:</label>
+                    <input id="filterRevenueMin" type="number" placeholder="0" style="width:140px;" />
+                    <label>Maks:</label>
+                    <input id="filterRevenueMax" type="number" placeholder="" style="width:140px;" />
+                    <label>Durum:</label>
+                    <select id="filterStatus" class="btn-secondary">
+                        <option value="">Tümü</option>
+                        <option value="new">Yeni</option>
+                        <option value="reviewing">İnceleniyor</option>
+                        <option value="approved">Onaylandı</option>
+                        <option value="rejected">Reddedildi</option>
+                    </select>
+                    <button class="btn-primary" onclick="loadDealershipApplications()">
+                        <i class="fas fa-filter"></i> Uygula
+                    </button>
+                    <button class="btn-secondary" onclick="loadDealershipApplications()">
+                        <i class="fas fa-sync"></i> Yenile
+                    </button>
+                </div>
+            </div>
+            <div class="table-container" id="dealershipApplications">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+                    <div>
+                        <button class="btn-secondary" onclick="dealershipBatchUpdate('reviewing')"><i class="fas fa-hourglass-half"></i> İnceleniyor</button>
+                        <button class="btn-secondary" onclick="dealershipBatchUpdate('approved')"><i class="fas fa-check"></i> Onayla</button>
+                        <button class="btn-secondary" onclick="dealershipBatchUpdate('rejected')"><i class="fas fa-times"></i> Reddet</button>
+                    </div>
+                    <small>Seçilen kayıtlar için durum değiştirilecektir.</small>
+                </div>
+                <div class="loading">Başvurular yükleniyor...</div>
+            </div>
+        </div>
+
+        <!-- Live Data Section -->
+        <div class="content-section hidden" id="live-section">
+            <div class="section-header">
+                <h2>Canlı Veriler</h2>
+                <button class="btn-primary" onclick="refreshLive()"><i class="fas fa-sync"></i> Yenile</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Kullanıcı</th>
+                            <th>Ürün</th>
+                            <th>Görüntüleme Zamanı</th>
+                            <th>Süre (sn)</th>
+                            <th>Sepete Ekle</th>
+                            <th>Sipariş</th>
+                        </tr>
+                    </thead>
+                    <tbody id="liveTableBody">
+                        <tr><td colspan="6" class="loading">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Wallets Section -->
+        <div class="content-section hidden" id="wallets-section">
+            <div class="section-header">
+                <h2>Müşteri Bakiyeleri</h2>
+                <button class="btn-primary" onclick="refreshWallets()"><i class="fas fa-sync"></i> Yenile</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Kullanıcı</th>
+                            <th>Email</th>
+                            <th>Bakiye</th>
+                            <th>İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="walletsTableBody">
+                        <tr><td colspan="4" class="loading">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tenants Section -->
+        <div class="content-section hidden" id="tenants-section">
+            <div class="section-header">
+                <h2>Tenant Yönetimi</h2>
+                <button class="btn-primary" onclick="refreshTenants()">
+                    <i class="fas fa-sync"></i> Yenile
+                </button>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Ad</th>
+                            <th>Domain</th>
+                            <th>Subdomain</th>
+                            <th>Durum</th>
+                            <th>Oluşturulma</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tenantsTableBody">
+                        <tr>
+                            <td colspan="6" class="loading">Yükleniyor...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="content-section hidden" id="settings-section">
+            <div class="section-header">
+                <h2>Ayarlar</h2>
+            </div>
+            
+            <div class="settings-grid">
+                <div class="setting-card">
+                    <h3>API Ayarları</h3>
+                    <div class="setting-item">
+                        <label>Admin Key:</label>
+                        <input type="password" value="huglu-admin-2024-secure-key" readonly>
+                    </div>
+                    <div class="setting-item">
+                        <label>Tenant API Key</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" id="tenantApiKeyInput" placeholder="X-API-Key" style="width:280px;">
+                            <button class="btn-primary" onclick="saveTenantApiKey()"><i class="fas fa-save"></i> Kaydet</button>
+                            <button class="btn-secondary" onclick="clearTenantApiKey()"><i class="fas fa-eraser"></i></button>
+                        </div>
+                        <small>Öneri ve event API çağrıları için zorunludur.</small>
+                    </div>
+                </div>
+                
+                <div class="setting-card">
+                    <h3>Sistem Bilgileri</h3>
+                    <div class="setting-item">
+                        <label>Sunucu Durumu:</label>
+                        <span class="status-badge online">Çevrimiçi</span>
+                    </div>
+                    <div class="setting-item">
+                        <label>Veritabanı:</label>
+                        <span class="status-badge online">Bağlı</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chatbot Management Section -->
+        <div class="content-section hidden" id="chatbot-section">
+            <div class="section-header">
+                <h2>Chatbot Yönetimi</h2>
+                <div class="header-actions">
+                    <button class="btn-secondary" onclick="loadChatbotConfig()"><i class="fas fa-sync"></i> Yenile</button>
+                    <button class="btn-primary" onclick="saveChatbotConfig()"><i class="fas fa-save"></i> Kaydet</button>
+                </div>
+            </div>
+
+            <div class="settings-grid">
+                <div class="setting-card">
+                    <h3>Genel Ayarlar</h3>
+                    <div class="setting-item">
+                        <label>Aktif</label>
+                        <select id="cbEnabled" class="btn-secondary" style="min-width:160px;">
+                            <option value="true">Açık</option>
+                            <option value="false">Kapalı</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Varsayılan Dil</label>
+                        <select id="cbDefaultLang" class="btn-secondary" style="min-width:160px;">
+                            <option value="tr">tr</option>
+                            <option value="en">en</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Karşılama Mesajı</label>
+                        <input id="cbWelcome" type="text" placeholder="Merhaba, nasıl yardımcı olabilirim?">
+                    </div>
+                </div>
+
+                <div class="setting-card">
+                    <h3>Bilgi Bankası (FAQ)</h3>
+                    <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                        <input id="faqQ" type="text" class="btn-secondary" placeholder="Soru" style="flex:1;">
+                        <input id="faqA" type="text" class="btn-secondary" placeholder="Cevap" style="flex:2;">
+                        <button class="btn-primary" onclick="addFaqItem()"><i class="fas fa-plus"></i> Ekle</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead><tr><th>Soru</th><th>Cevap</th><th>İşlemler</th></tr></thead>
+                            <tbody id="faqTableBody"><tr><td colspan="3" class="loading">Yükleniyor...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LLM sohbet bu sayfadan kaldırıldı; lütfen Yapay Zeka sayfasını (ai.html) kullanın. -->
+        </div>
+
+        <!-- Personalization Section -->
+        <div class="content-section hidden" id="personalization-section">
+            <div class="section-header">
+                <h2>Kişiselleştirme ve Öneriler</h2>
+                <div class="header-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
+                    <input type="number" id="persUserId" class="btn-secondary" placeholder="Kullanıcı ID" style="width:160px;"/>
+                    <button class="btn-secondary" onclick="persRebuildProfile()"><i class="fas fa-sync"></i> Profili Yeniden Hesapla</button>
+                    <button class="btn-primary" onclick="persLoadRecommendations()"><i class="fas fa-lightbulb"></i> Önerileri Getir</button>
+                </div>
+            </div>
+
+            <div class="pers-layout">
+                <div class="pers-left">
+                    <div class="info-card">
+                        <div class="pers-summary">
+                            <div class="summary-item">
+                                <div class="label">Fiyat Bandı</div>
+                                <div class="value" id="persPriceBand">-</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="label">İndirim Duyarlılığı</div>
+                                <div class="value" id="persDiscountAffinity">-</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="label">Toplam Event</div>
+                                <div class="value" id="persTotalEvents">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>İlgi Alanları (Kategori)</h3>
+                        <div id="persInterestsTags" class="tag-cloud"><span class="text-muted">Veri yok</span></div>
+                        <details style="margin-top:12px">
+                            <summary>Ham JSON</summary>
+                            <div id="persInterests" class="code-block" style="font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-word;">-</div>
+                        </details>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>Marka Tercihleri</h3>
+                        <div id="persBrandsTags" class="tag-cloud"><span class="text-muted">Veri yok</span></div>
+                        <details style="margin-top:12px">
+                            <summary>Ham JSON</summary>
+                            <div id="persBrands" class="code-block" style="font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-word;">-</div>
+                        </details>
+                    </div>
+                </div>
+
+                <div class="pers-right">
+                    <div class="table-container">
+                        <div class="pers-recs-header">
+                            <h3>Önerilen Ürünler</h3>
+                            <div class="pers-recs-actions">
+                                <button class="btn-secondary" onclick="fillPersonalizationMock()"><i class="fas fa-vial"></i> Mock</button>
+                                <button class="btn-secondary" onclick="persLoadRecommendations()"><i class="fas fa-sync"></i></button>
+                            </div>
+                        </div>
+                        <div id="persRecsGrid" class="recs-grid">
+                            <div class="no-data">Veri yok</div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <h3>Event Gönder</h3>
+                        <div class="pers-event-form">
+                            <select id="persEventType" class="btn-secondary">
+                                <option value="view">view</option>
+                                <option value="click">click</option>
+                                <option value="add_to_cart">add_to_cart</option>
+                                <option value="purchase">purchase</option>
+                                <option value="favorite">favorite</option>
+                                <option value="search">search</option>
+                                <option value="filter">filter</option>
+                            </select>
+                            <input type="number" id="persProductId" class="btn-secondary" placeholder="Product ID"/>
+                            <input type="text" id="persSearchQuery" class="btn-secondary" placeholder="search_query"/>
+                            <input type="text" id="persFilterDetails" class="btn-secondary" placeholder='{"maxPrice":500}'/>
+                            <button class="btn-primary" onclick="persSendEvent()"><i class="fas fa-paper-plane"></i> Gönder</button>
+                        </div>
+                        <small>Event sonrası profil ve öneriler otomatik güncellenir.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Production Section -->
+        <div class="content-section hidden" id="custom-production-section">
+            <div class="section-header">
+                <h2>Özel Üretim Yönetimi</h2>
+                <button class="btn-primary" onclick="loadCustomProductions()">
+                    <i class="fas fa-sync"></i> Yenile
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Kullanıcı</th>
+                            <th>Durum</th>
+                            <th>Adet</th>
+                            <th>Tutar</th>
+                            <th>Teklif</th>
+                            <th>Oluşturulma</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customProductionTableBody">
+                        <tr>
+                            <td colspan="8" class="loading">Yükleniyor...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create / Edit Product Modal -->
+    <div class="modal hidden" id="productModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ürün</h3>
+                <button class="modal-close" onclick="closeModal('productModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ad *</label>
+                            <input type="text" id="productName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Fiyat *</label>
+                            <input type="text" id="productPrice" placeholder="örn. 199.90" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Kategori</label>
+                            <select id="productCategory">
+                                <option value="">Seçiniz</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Stok</label>
+                            <input type="number" id="productStock" step="1">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>KDV Oranı</label>
+                            <select id="productTaxRate">
+                                <option value="0">0%</option>
+                                <option value="1">1%</option>
+                                <option value="10">10%</option>
+                                <option value="20">20%</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>KDV Durumu</label>
+                            <select id="productPriceIncludesTax">
+                                <option value="false">KDV Hariç</option>
+                                <option value="true">KDV Dahil</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Marka</label>
+                        <input type="text" id="productBrand">
+                    </div>
+                    <div class="form-group">
+                        <label>Görsel URL</label>
+                        <input type="text" id="productImage">
+                    </div>
+                    <div class="form-group">
+                        <label>Açıklama</label>
+                        <textarea id="productDescription" rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('productModal')">İptal</button>
+                        <button type="submit" class="btn-primary">Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Order Details Modal -->
+    <div class="modal hidden" id="orderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Sipariş Detayları</h3>
+                <button class="modal-close" onclick="closeOrderModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="orderModalBody">
+                <!-- Order details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Campaign Modal -->
+    <div class="modal hidden" id="createCampaignModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Yeni Kampanya Oluştur</h3>
+                <button class="modal-close" onclick="closeModal('createCampaignModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="createCampaignForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="campaignName">Kampanya Adı *</label>
+                            <input type="text" id="campaignName" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="campaignType">Kampanya Türü *</label>
+                            <select id="campaignType" name="type" required>
+                                <option value="discount">İndirim</option>
+                                <option value="free_shipping">Ücretsiz Kargo</option>
+                                <option value="bundle">Paket Kampanyası</option>
+                                <option value="loyalty">Sadakat Programı</option>
+                                <option value="seasonal">Mevsimsel</option>
+                                <option value="birthday">Doğum Günü</option>
+                                <option value="abandoned_cart">Terk Edilen Sepet</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="campaignDescription">Açıklama</label>
+                        <textarea id="campaignDescription" name="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="targetSegment">Hedef Segment</label>
+                            <select id="targetSegment" name="targetSegmentId">
+                                <option value="">Tüm Müşteriler</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="discountType">İndirim Türü</label>
+                            <select id="discountType" name="discountType">
+                                <option value="percentage">Yüzde</option>
+                                <option value="fixed">Sabit Tutar</option>
+                                <option value="buy_x_get_y">Al X Öde Y</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="discountValue">İndirim Değeri</label>
+                            <input type="number" id="discountValue" name="discountValue" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="minOrderAmount">Minimum Sipariş Tutarı</label>
+                            <input type="number" id="minOrderAmount" name="minOrderAmount" step="0.01" min="0">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="startDate">Başlangıç Tarihi</label>
+                            <input type="datetime-local" id="startDate" name="startDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="endDate">Bitiş Tarihi</label>
+                            <input type="datetime-local" id="endDate" name="endDate">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="usageLimit">Kullanım Limiti</label>
+                        <input type="number" id="usageLimit" name="usageLimit" min="1">
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('createCampaignModal')">
+                            İptal
+                        </button>
+                        <button type="submit" class="btn-primary">
+                            Kampanya Oluştur
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Segment Modal -->
+    <div class="modal hidden" id="createSegmentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Yeni Müşteri Segmenti Oluştur</h3>
+                <button class="modal-close" onclick="closeModal('createSegmentModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="createSegmentForm">
+                    <div class="form-group">
+                        <label for="segmentName">Segment Adı *</label>
+                        <input type="text" id="segmentName" name="name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="segmentDescription">Açıklama</label>
+                        <textarea id="segmentDescription" name="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Segment Kriterleri</label>
+                        <div class="criteria-section">
+                            <div class="criteria-item">
+                                <span>Minimum Sipariş Sayısı</span>
+                                <input type="number" name="minOrders" min="0" style="width: 100px;">
+                            </div>
+                            <div class="criteria-item">
+                                <span>Maksimum Sipariş Sayısı</span>
+                                <input type="number" name="maxOrders" min="0" style="width: 100px;">
+                            </div>
+                            <div class="criteria-item">
+                                <span>Minimum Harcama (TL)</span>
+                                <input type="number" name="minSpent" min="0" step="0.01" style="width: 100px;">
+                            </div>
+                            <div class="criteria-item">
+                                <span>Maksimum Harcama (TL)</span>
+                                <input type="number" name="maxSpent" min="0" step="0.01" style="width: 100px;">
+                            </div>
+                            <div class="criteria-item">
+                                <span>Son Sipariş (Gün)</span>
+                                <input type="number" name="lastOrderDays" min="0" style="width: 100px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('createSegmentModal')">
+                            İptal
+                        </button>
+                        <button type="submit" class="btn-primary">
+                            Segment Oluştur
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flash Deal Modal -->
+    <div class="modal hidden" id="createFlashDealModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Yeni Flash İndirim Oluştur</h3>
+                <button class="modal-close" onclick="closeModal('createFlashDealModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="createFlashDealForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="flashDealName">İndirim Adı *</label>
+                            <input type="text" id="flashDealName" name="name" required placeholder="Örn: Haftalık Flash İndirim">
+                        </div>
+                        <div class="form-group">
+                            <label for="flashDealDescription">Açıklama</label>
+                            <textarea id="flashDealDescription" name="description" rows="3" placeholder="İndirim hakkında açıklama..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="flashDealDiscountType">İndirim Türü *</label>
+                            <select id="flashDealDiscountType" name="discount_type" required onchange="updateDiscountInput()">
+                                <option value="">Seçiniz</option>
+                                <option value="percentage">Yüzde (%)</option>
+                                <option value="fixed">Sabit Tutar (₺)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="flashDealDiscountValue">İndirim Değeri *</label>
+                            <input type="number" id="flashDealDiscountValue" name="discount_value" required min="0" step="0.01" placeholder="0">
+                            <span id="discountValueSuffix">₺</span>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="flashDealTargetType">Hedef Türü *</label>
+                            <select id="flashDealTargetType" name="target_type" required onchange="updateTargetSelection()">
+                                <option value="">Seçiniz</option>
+                                <option value="category">Kategori</option>
+                                <option value="product">Ürün</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="flashDealTargetId">Hedef Seçimi *</label>
+                            <select id="flashDealTargetId" name="target_id" required disabled>
+                                <option value="">Önce hedef türü seçin</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="flashDealStartDate">Başlangıç Tarihi *</label>
+                            <input type="datetime-local" id="flashDealStartDate" name="start_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="flashDealEndDate">Bitiş Tarihi *</label>
+                            <input type="datetime-local" id="flashDealEndDate" name="end_date" required>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('createFlashDealModal')">
+                            İptal
+                        </button>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-bolt"></i> Flash İndirim Oluştur
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=remote-2025"></script>
+</body>
+</html>

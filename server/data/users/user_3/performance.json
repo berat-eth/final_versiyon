@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1757756087105.8665,
+    "performanceType": "app_stability",
+    "performanceData": {
+      "sessionDuration": 1800000,
+      "crashCount": 0,
+      "errorCount": 1,
+      "performanceScore": 85
+    },
+    "timestamp": "2025-09-13T09:34:47.105Z"
+  }
+]

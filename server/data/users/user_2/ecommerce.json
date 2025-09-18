@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1757756087070.164,
+    "ecommerceType": "cart_abandonment",
+    "ecommerceData": {
+      "cartValue": 299.98,
+      "itemCount": 2,
+      "abandonmentStage": "checkout_start",
+      "timeInCart": 15
+    },
+    "timestamp": "2025-09-13T09:34:47.070Z"
+  }
+]

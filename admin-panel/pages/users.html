@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanıcılar - Huglu Admin</title>
+    <link rel="stylesheet" href="../style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <div class="logo">
+            <img src="../../assets/logo.jpg" alt="Logo" style="width:28px;height:28px;object-fit:cover;border-radius:6px;">
+            <span>Huglu Admin</span>
+        </div>
+        <nav class="nav-menu">
+            <a href="dashboard.html" class="nav-item" data-external="true"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
+            <a href="users.html" class="nav-item active" data-external="true"><i class="fas fa-users"></i><span>Kullanıcılar</span></a>
+            <a href="orders.html" class="nav-item" data-external="true"><i class="fas fa-shopping-cart"></i><span>Siparişler</span></a>
+            <a href="products.html" class="nav-item" data-external="true"><i class="fas fa-box"></i><span>Ürünler</span></a>
+            <a href="chatbot.html" class="nav-item" data-external="true"><i class="fas fa-robot"></i><span>Chatbot</span></a>
+            <a href="ai.html" class="nav-item" data-external="true"><i class="fas fa-brain"></i><span>Yapay Zeka</span></a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                <h1 id="pageTitle">Kullanıcı Yönetimi</h1>
+            </div>
+        </header>
+
+        <div class="content-section" id="users-section">
+            <div class="section-header">
+                <h2>Kullanıcılar</h2>
+                <button class="btn-primary" onclick="refreshUsers()"><i class="fas fa-sync"></i> Yenile</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>ID</th><th>Ad</th><th>Email</th><th>Telefon</th><th>Tenant</th><th>Bakiye</th><th>Kuponlar</th><th>Kayıt</th></tr>
+                    </thead>
+                    <tbody id="usersTableBody"><tr><td colspan="8" class="loading">Yükleniyor...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="../script.js?v=remote-2025"></script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('collapsed'); });
+        if (typeof refreshUsers === 'function') { refreshUsers(); }
+    </script>
+</body>
+</html>
+
+

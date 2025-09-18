@@ -1,0 +1,12 @@
+{
+  "userId": 3,
+  "name": "Mehmet",
+  "surname": "Kaya",
+  "email": "mehmet@example.com",
+  "phone": "05555555555",
+  "firstSeen": "2025-09-13T09:34:47.086Z",
+  "lastSeen": "2025-09-13T09:34:47.086Z",
+  "totalSessions": 7,
+  "totalActivities": 32,
+  "lastUpdated": "2025-09-13T09:34:47.086Z"
+}

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kampanyalar - Huglu Admin</title>
+    <link rel="stylesheet" href="../style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <div class="logo">
+            <img src="../../assets/logo.jpg" alt="Logo" style="width:28px;height:28px;object-fit:cover;border-radius:6px;">
+            <span>Huglu Admin</span>
+        </div>
+        <nav class="nav-menu">
+            <a href="dashboard.html" class="nav-item" data-external="true"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
+            <a href="products.html" class="nav-item" data-external="true"><i class="fas fa-box"></i><span>Ürünler</span></a>
+            <a href="campaigns.html" class="nav-item active" data-external="true"><i class="fas fa-bullhorn"></i><span>Kampanyalar</span></a>
+            <a href="chatbot.html" class="nav-item" data-external="true"><i class="fas fa-robot"></i><span>Chatbot</span></a>
+            <a href="ai.html" class="nav-item" data-external="true"><i class="fas fa-brain"></i><span>Yapay Zeka</span></a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                <h1 id="pageTitle">Kampanya Yönetimi</h1>
+            </div>
+            <div class="header-actions">
+                <button class="btn-primary" onclick="openCreateCampaignModal()"><i class="fas fa-plus"></i> Yeni Kampanya</button>
+                <button class="btn-secondary" onclick="openCreateFlashDealModal()"><i class="fas fa-bolt"></i> Flash İndirim</button>
+                <input id="campaignSearch" class="btn-secondary" type="text" placeholder="Ara (ad/açıklama)" onkeydown="if(event.key==='Enter'){refreshCampaigns()}"/>
+                <select id="campaignStatusFilter" class="btn-secondary" onchange="refreshCampaigns()">
+                    <option value="">Tüm Durumlar</option>
+                    <option value="active">Aktif</option>
+                    <option value="paused">Durduruldu</option>
+                    <option value="ended">Bitti</option>
+                </select>
+                <select id="campaignPageSize" class="btn-secondary" onchange="refreshCampaigns()">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="content-section" id="campaigns-section">
+            <div class="campaign-tabs">
+                <div class="tab-buttons">
+                    <button class="tab-button active" onclick="showCampaignTab('regular')"><i class="fas fa-bullhorn"></i> Normal Kampanyalar</button>
+                    <button class="tab-button" onclick="showCampaignTab('flash')"><i class="fas fa-bolt"></i> Flash İndirimleri</button>
+                </div>
+                <div class="tab-content">
+                    <div id="regular-campaigns-tab" class="tab-panel active">
+                        <div class="campaigns-grid">
+                            <div class="campaign-stats">
+                                <div class="stat-card"><div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);"><i class="fas fa-bullhorn"></i></div><div class="stat-info"><h3 id="totalCampaignsCount">-</h3><p>Toplam Kampanya</p></div></div>
+                                <div class="stat-card"><div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);"><i class="fas fa-play"></i></div><div class="stat-info"><h3 id="activeCampaignsCount">-</h3><p>Aktif Kampanya</p></div></div>
+                                <div class="stat-card"><div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);"><i class="fas fa-chart-line"></i></div><div class="stat-info"><h3 id="campaignUsageCount">-</h3><p>Toplam Kullanım</p></div></div>
+                            </div>
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead><tr><th>ID</th><th>Kampanya Adı</th><th>Tür</th><th>Durum</th><th>Hedef Segment</th><th>İndirim</th><th>Kullanım</th><th>Başlangıç</th><th>İşlemler</th></tr></thead>
+                                    <tbody id="campaignsTableBody"><tr><td colspan="9" class="loading">Yükleniyor...</td></tr></tbody>
+                                </table>
+                                <div class="table-footer" style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                                    <div id="campaignsMeta"></div>
+                                    <div style="display:flex;gap:8px;align-items:center;">
+                                        <button class="btn-secondary" onclick="prevCampaignPage()"><i class="fas fa-chevron-left"></i></button>
+                                        <span id="campaignsPageInfo">-</span>
+                                        <button class="btn-secondary" onclick="nextCampaignPage()"><i class="fas fa-chevron-right"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="flash-campaigns-tab" class="tab-panel">
+                        <div class="flash-deals-grid">
+                            <div class="flash-deals-stats">
+                                <div class="stat-card"><div class="stat-icon" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);"><i class="fas fa-bolt"></i></div><div class="stat-info"><h3 id="totalFlashDealsCount">-</h3><p>Toplam Flash İndirim</p></div></div>
+                                <div class="stat-card"><div class="stat-icon" style="background: linear-gradient(135deg, #feca57, #ff9ff3);"><i class="fas fa-clock"></i></div><div class="stat-info"><h3 id="activeFlashDealsCount">-</h3><p>Aktif Flash İndirim</p></div></div>
+                                <div class="stat-card"><div class="stat-icon" style="background: linear-gradient(135deg, #48dbfb, #0abde3);"><i class="fas fa-percentage"></i></div><div class="stat-info"><h3 id="averageFlashDiscount">-</h3><p>Ortalama İndirim</p></div></div>
+                            </div>
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead><tr><th>ID</th><th>İndirim Adı</th><th>İndirim Türü</th><th>İndirim Değeri</th><th>Hedef</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th><th>İşlemler</th></tr></thead>
+                                    <tbody id="flashDealsTableBody"><tr><td colspan="9" class="loading">Yükleniyor...</td></tr></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../script.js?v=remote-2025"></script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('collapsed'); });
+        if (typeof refreshCampaigns === 'function') { refreshCampaigns(); }
+        if (typeof showCampaignTab !== 'function') {
+            window.showCampaignTab = function(tab) {
+                document.querySelectorAll('.tab-button').forEach(b=>b.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+                if (tab === 'regular') {
+                    document.getElementById('regular-campaigns-tab').classList.add('active');
+                    document.querySelectorAll('.tab-button')[0].classList.add('active');
+                } else {
+                    document.getElementById('flash-campaigns-tab').classList.add('active');
+                    document.querySelectorAll('.tab-button')[1].classList.add('active');
+                }
+            };
+        }
+    </script>
+</body>
+</html>
+
+

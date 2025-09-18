@@ -1,0 +1,25 @@
+[
+  {
+    "id": 1757756087099.823,
+    "ecommerceType": "order_completed",
+    "ecommerceData": {
+      "orderId": "ORD-2024-001",
+      "totalAmount": 450,
+      "products": [
+        {
+          "productId": 123,
+          "name": "Tişört",
+          "price": 89.99,
+          "quantity": 2
+        },
+        {
+          "productId": 456,
+          "name": "Pantolon",
+          "price": 199.99,
+          "quantity": 1
+        }
+      ]
+    },
+    "timestamp": "2025-09-13T09:34:47.099Z"
+  }
+]

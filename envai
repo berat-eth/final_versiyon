@@ -1,0 +1,44 @@
+# Production Environment Configuration
+# Copy this file to .env and fill in your actual values
+
+# Server Configuration
+NODE_ENV=production
+PORT=3000
+HOST=0.0.0.0
+
+# Database Configuration (Remote MySQL Server)
+DB_HOST=92.113.22.70
+DB_USER=u987029066_Admin
+DB_PASSWORD=38cdfD8217..
+DB_NAME=u987029066_mobil
+DB_PORT=3306
+
+# Security Configuration
+ADMIN_KEY=f4f1c2d6b7a4e1f9a0c5d3e8b6a7c4f
+ENCRYPTION_KEY=8f2ac4d9b7e1c3a5f6d8b2e4c1a9f0d3e7c5b1a2d4f6e8c0b3a7d9e1f2c4b6a8
+JWT_SECRET=9f1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3
+
+# API Configuration
+API_RATE_LIMIT=100
+CORS_ORIGINS=http://localhost:5500,http://127.0.0.1:5500,http://localhost:5173,http://127.0.0.1:5173
+
+# SSL Configuration (if using HTTPS)
+SSL_ENABLED=false
+SSL_CERT_PATH=
+SSL_KEY_PATH=
+
+# Logging Configuration
+LOG_LEVEL=info
+LOG_FILE=./logs/server.log
+
+# XML Sync Configuration
+XML_SYNC_ENABLED=true
+XML_SYNC_INTERVAL=14400000
+
+# İyzico Payment Configuration
+IYZICO_API_KEY=sandbox-your-api-key
+IYZICO_SECRET_KEY=sandbox-your-secret-key
+IYZICO_URI=https://sandbox-api.iyzipay.com
+
+# Health Check Configuration
+HEALTH_CHECK_ENABLED=true
