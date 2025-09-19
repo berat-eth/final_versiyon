@@ -1,15 +1,17 @@
 const axios = require('axios');
 
-// Test all notification types
+// Test all notification types with remote servers
 async function testAllNotifications() {
   try {
-    console.log('🧪 Testing all notification types...');
+    console.log('🧪 Testing all notification types with remote servers...');
     
     // Uzak sunucu URL'leri
     const remoteServers = [
       'https://huglu-mobil-api.vercel.app',
       'https://huglu-mobil-api.onrender.com',
-      'https://api.huglu.com'
+      'https://api.huglu.com',
+      'https://huglu-api.herokuapp.com',
+      'https://huglu-mobil-api.netlify.app'
     ];
     
     let baseUrl = 'http://localhost:3000'; // Fallback
@@ -32,21 +34,49 @@ async function testAllNotifications() {
     }
     
     if (!serverFound) {
-      console.log('⚠️ No remote server found, using localhost');
+      console.log('⚠️ No remote server found, trying localhost...');
+      try {
+        const response = await axios.get('http://localhost:3000/api/health', { timeout: 3000 });
+        if (response.status === 200) {
+          baseUrl = 'http://localhost:3000';
+          serverFound = true;
+          console.log('✅ Using localhost server');
+        }
+      } catch (error) {
+        console.log('❌ Localhost server not available');
+      }
+    }
+    
+    if (!serverFound) {
+      console.log('❌ No server available for testing');
+      return;
     }
     
     const testUserId = 1;
     
-    // 1. Order Status Notifications
+    // Test all notification types
     console.log('\n📋 Testing Order Status Notifications...');
-    
     await testOrderStatus(baseUrl, testUserId);
+    
+    console.log('\n📦 Testing Stock Notifications...');
     await testStockNotifications(baseUrl, testUserId);
+    
+    console.log('\n💰 Testing Price Notifications...');
     await testPriceNotifications(baseUrl, testUserId);
+    
+    console.log('\n🎯 Testing Campaign Notifications...');
     await testCampaignNotifications(baseUrl, testUserId);
+    
+    console.log('\n💳 Testing Wallet Notifications...');
     await testWalletNotifications(baseUrl, testUserId);
+    
+    console.log('\n🔐 Testing Security Notifications...');
     await testSecurityNotifications(baseUrl, testUserId);
+    
+    console.log('\n🎨 Testing Personalized Notifications...');
     await testPersonalizedNotifications(baseUrl, testUserId);
+    
+    console.log('\n⏰ Testing Scheduled Notifications...');
     await testScheduledNotifications(baseUrl, testUserId);
     
     console.log('\n✅ All notification tests completed!');
@@ -55,6 +85,16 @@ async function testAllNotifications() {
     console.error('❌ Test failed:', error.response?.data || error.message);
   }
 }
+
+// Common request configuration
+const requestConfig = {
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'test-key',
+    'User-Agent': 'Notification-Test-Client/1.0'
+  }
+};
 
 async function testOrderStatus(baseUrl, userId) {
   const statuses = ['confirmed', 'shipped', 'delivered', 'cancelled'];
@@ -66,13 +106,7 @@ async function testOrderStatus(baseUrl, userId) {
         orderId: 12345,
         status,
         orderDetails: { trackingCode: 'ABC123' }
-      }, {
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': 'test-key' // API key gerekebilir
-        }
-      });
+      }, requestConfig);
       console.log(`  ✅ ${status}: ${response.data.success ? 'Success' : 'Failed'}`);
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
@@ -92,13 +126,7 @@ async function testStockNotifications(baseUrl, userId) {
         productId: 1,
         productName: 'Test Ürün',
         stockType
-      }, {
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': 'test-key'
-        }
-      });
+      }, requestConfig);
       console.log(`  ✅ ${stockType}: ${response.data.success ? 'Success' : 'Failed'}`);
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
@@ -121,13 +149,7 @@ async function testPriceNotifications(baseUrl, userId) {
         productId: 1,
         productName: 'Test Ürün',
         priceChange
-      }, {
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': 'test-key'
-        }
-      });
+      }, requestConfig);
       console.log(`  ✅ ${priceChange.type}: ${response.data.success ? 'Success' : 'Failed'}`);
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
@@ -149,10 +171,12 @@ async function testCampaignNotifications(baseUrl, userId) {
       const response = await axios.post(`${baseUrl}/api/notifications/campaign`, {
         userId,
         campaign
-      });
+      }, requestConfig);
       console.log(`  ✅ ${campaign.type}: ${response.data.success ? 'Success' : 'Failed'}`);
     } catch (error) {
-      console.log(`  ❌ ${campaign.type}: ${error.response?.data?.message || 'Error'}`);
+      const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+      const statusCode = error.response?.status || 'No response';
+      console.log(`  ❌ ${campaign.type}: ${errorMsg} (Status: ${statusCode})`);
     }
   }
 }
@@ -171,10 +195,12 @@ async function testWalletNotifications(baseUrl, userId) {
         walletAction: wallet.action,
         amount: wallet.amount,
         balance: wallet.balance
-      });
+      }, requestConfig);
       console.log(`  ✅ ${wallet.action}: ${response.data.success ? 'Success' : 'Failed'}`);
     } catch (error) {
-      console.log(`  ❌ ${wallet.action}: ${error.response?.data?.message || 'Error'}`);
+      const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+      const statusCode = error.response?.status || 'No response';
+      console.log(`  ❌ ${wallet.action}: ${errorMsg} (Status: ${statusCode})`);
     }
   }
 }
@@ -193,10 +219,12 @@ async function testSecurityNotifications(baseUrl, userId) {
         userId,
         securityEvent: security.event,
         details: security.details
-      });
+      }, requestConfig);
       console.log(`  ✅ ${security.event}: ${response.data.success ? 'Success' : 'Failed'}`);
     } catch (error) {
-      console.log(`  ❌ ${security.event}: ${error.response?.data?.message || 'Error'}`);
+      const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+      const statusCode = error.response?.status || 'No response';
+      console.log(`  ❌ ${security.event}: ${errorMsg} (Status: ${statusCode})`);
     }
   }
 }
@@ -213,10 +241,12 @@ async function testPersonalizedNotifications(baseUrl, userId) {
       const response = await axios.post(`${baseUrl}/api/notifications/personalized`, {
         userId,
         recommendation
-      });
+      }, requestConfig);
       console.log(`  ✅ ${recommendation.type}: ${response.data.success ? 'Success' : 'Failed'}`);
     } catch (error) {
-      console.log(`  ❌ ${recommendation.type}: ${error.response?.data?.message || 'Error'}`);
+      const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+      const statusCode = error.response?.status || 'No response';
+      console.log(`  ❌ ${recommendation.type}: ${errorMsg} (Status: ${statusCode})`);
     }
   }
 }
@@ -235,13 +265,29 @@ async function testScheduledNotifications(baseUrl, userId) {
         userId,
         scheduleType: scheduled.type,
         data: scheduled.data
-      });
+      }, requestConfig);
       console.log(`  ✅ ${scheduled.type}: ${response.data.success ? 'Success' : 'Failed'}`);
     } catch (error) {
-      console.log(`  ❌ ${scheduled.type}: ${error.response?.data?.message || 'Error'}`);
+      const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+      const statusCode = error.response?.status || 'No response';
+      console.log(`  ❌ ${scheduled.type}: ${errorMsg} (Status: ${statusCode})`);
     }
   }
 }
 
+// Server health check
+async function checkServerHealth(baseUrl) {
+  try {
+    console.log(`\n🏥 Checking server health: ${baseUrl}`);
+    const response = await axios.get(`${baseUrl}/api/health`, { timeout: 5000 });
+    console.log(`✅ Server is healthy: ${response.status} ${response.statusText}`);
+    return true;
+  } catch (error) {
+    console.log(`❌ Server health check failed: ${error.message}`);
+    return false;
+  }
+}
+
 // Run the test
+console.log('🚀 Starting notification system test...');
 testAllNotifications();
