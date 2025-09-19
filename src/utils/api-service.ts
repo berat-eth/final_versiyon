@@ -1118,6 +1118,15 @@ class ApiService {
     });
   }
 
+  // Custom production messages
+  async sendCustomProductionMessage(requestId: number, userKey: string | number, message: string): Promise<ApiResponse<any>> {
+    return this.request<any>(`/custom-production-requests/${requestId}/messages`, 'POST', { userKey, message });
+  }
+
+  async listCustomProductionMessages(requestId: number): Promise<ApiResponse<any[]>> {
+    return this.request<any[]>(`/custom-production-requests/${requestId}/messages`);
+  }
+
   // Generic HTTP methods for campaign system
   async get<T = any>(endpoint: string): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, 'GET');

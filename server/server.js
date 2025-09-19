@@ -4160,6 +4160,43 @@ app.get('/api/custom-production-requests/:userKey', async (req, res) => {
   }
 });
 
+// Create a message for a custom production request (user side)
+app.post('/api/custom-production-requests/:requestId/messages', async (req, res) => {
+  try {
+    const tenantId = 1;
+    const requestId = parseInt(req.params.requestId, 10);
+    const { userKey, message } = req.body || {};
+    if (!requestId || !message || !userKey) {
+      return res.status(400).json({ success: false, message: 'requestId, userKey and message are required' });
+    }
+    const userId = await resolveUserKeyToPk(userKey, tenantId);
+    await poolWrapper.execute(
+      `INSERT INTO custom_production_messages (tenantId, requestId, userId, sender, message) VALUES (?, ?, ?, 'user', ?)`,
+      [tenantId, requestId, userId, String(message).slice(0, 5000)]
+    );
+    res.json({ success: true, message: 'Mesaj kaydedildi' });
+  } catch (error) {
+    console.error('❌ Error creating custom production message:', error);
+    res.status(500).json({ success: false, message: 'Mesaj kaydedilemedi' });
+  }
+});
+
+// List messages for a request (admin or user)
+app.get('/api/custom-production-requests/:requestId/messages', async (req, res) => {
+  try {
+    const tenantId = 1;
+    const requestId = parseInt(req.params.requestId, 10);
+    const [rows] = await poolWrapper.execute(
+      `SELECT id, sender, message, createdAt FROM custom_production_messages
+       WHERE requestId = ? AND tenantId = ? ORDER BY createdAt ASC`,
+      [requestId, tenantId]
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('❌ Error listing custom production messages:', error);
+    res.status(500).json({ success: false, message: 'Mesajlar alınamadı' });
+  }
+});
 // Get single custom production request
 app.get('/api/custom-production-requests/:userKey/:requestId', async (req, res) => {
   try {

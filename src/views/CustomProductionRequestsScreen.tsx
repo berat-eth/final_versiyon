@@ -1,17 +1,20 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Image, Linking, Modal, TextInput } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Colors } from '../theme/colors';
 import { Spacing } from '../theme/theme';
 import { CustomProductionController, CustomProductionRequest } from '../controllers/CustomProductionController';
 import { useAppContext } from '../contexts/AppContext';
+import { apiService } from '../utils/api-service';
 
 export const CustomProductionRequestsScreen: React.FC<{ navigation: any }> = () => {
   const { state } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [requests, setRequests] = useState<CustomProductionRequest[]>([]);
+  const [msgModal, setMsgModal] = useState<{ visible: boolean; requestId?: number }>(() => ({ visible: false }));
+  const [msgText, setMsgText] = useState('');
 
   useEffect(() => {
     loadData(false);
@@ -100,7 +103,11 @@ export const CustomProductionRequestsScreen: React.FC<{ navigation: any }> = () 
           {item.items.map((sub, idx) => (
             <View key={`${item.id}-row-${sub.id || idx}`} style={styles.itemRow}>
               <View style={styles.itemLeft}>
-                <Icon name="checkroom" size={16} color={Colors.textMuted} />
+                {sub.productImage ? (
+                  <Image source={{ uri: sub.productImage }} style={styles.itemImage} resizeMode="cover" />
+                ) : (
+                  <Icon name="checkroom" size={16} color={Colors.textMuted} />
+                )}
                 <Text style={styles.itemName} numberOfLines={1}>{sub.productName || `Ürün #${sub.productId}`}</Text>
               </View>
               <View style={styles.itemRight}>
@@ -178,7 +185,7 @@ export const CustomProductionRequestsScreen: React.FC<{ navigation: any }> = () 
           ))}
         </View>
         <View style={styles.cardActions}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => setMsgModal({ visible: true, requestId: item.id })}>
             <Icon name="chat-bubble-outline" size={18} color={Colors.primary} />
             <Text style={styles.actionText}>Mesaj Gönder</Text>
           </TouchableOpacity>
@@ -206,6 +213,51 @@ export const CustomProductionRequestsScreen: React.FC<{ navigation: any }> = () 
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />
         }
       />
+
+      {/* Mesaj Gönder Modal */}
+      <Modal
+        visible={msgModal.visible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMsgModal({ visible: false })}
+      >
+        <View style={styles.modalOverlay}> 
+          <View style={styles.messageModal}> 
+            <View style={styles.modalHeader}> 
+              <Text style={styles.modalTitle}>Mesaj Gönder</Text>
+              <TouchableOpacity onPress={() => setMsgModal({ visible: false })}>
+                <Icon name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: Spacing.lg }}> 
+              <TextInput
+                style={[styles.textInput, { height: 120, textAlignVertical: 'top' }]}
+                placeholder="Mesajınızı yazın..."
+                value={msgText}
+                onChangeText={setMsgText}
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.actionButton, { marginTop: Spacing.md, alignSelf: 'flex-end', borderColor: Colors.primary }]}
+                onPress={async () => {
+                  if (!msgModal.requestId || !msgText.trim()) return;
+                  try {
+                    const userKey = state.user?.id || 1;
+                    const resp = await apiService.sendCustomProductionMessage(msgModal.requestId, userKey, msgText.trim());
+                    if (resp.success) {
+                      setMsgText('');
+                      setMsgModal({ visible: false });
+                    }
+                  } catch (e) {}
+                }}
+              >
+                <Icon name="send" size={18} color={Colors.primary} />
+                <Text style={styles.actionText}>Gönder</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -341,6 +393,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     color: Colors.text,
+  },
+  itemImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   itemRight: {},
   itemQty: {
@@ -498,5 +558,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.primary,
     fontWeight: '600',
+  },
+  messageModal: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    padding: Spacing.md,
+    fontSize: 16,
+    color: Colors.text,
+    backgroundColor: Colors.background,
   },
 });

@@ -582,6 +582,25 @@ async function createDatabaseSchema(pool) {
     `);
     console.log('✅ Payment transactions table ready');
 
+    // Custom Production Messages table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS custom_production_messages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        tenantId INT NOT NULL,
+        requestId INT NOT NULL,
+        userId INT NOT NULL,
+        sender ENUM('user','admin') NOT NULL,
+        message TEXT NOT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenantId) REFERENCES tenants(id) ON DELETE CASCADE,
+        FOREIGN KEY (requestId) REFERENCES custom_production_requests(id) ON DELETE CASCADE,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_req_messages (requestId, createdAt),
+        INDEX idx_sender (sender)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('✅ Custom production messages table ready');
+
     // Custom Production Requests table
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS custom_production_requests (
