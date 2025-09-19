@@ -236,6 +236,69 @@ app.use((req, res, next) => {
 const dbSecurity = new DatabaseSecurity();
 const inputValidator = new InputValidation();
 
+// Global API Key Authentication for all API routes (except health and admin login)
+app.use('/api', (req, res, next) => {
+  // Skip API key check for specific endpoints
+  const skipApiKeyPaths = [
+    '/api/health',
+    '/api/admin/login',
+    '/api/tenants' // Tenant creation doesn't require API key
+  ];
+  
+  if (skipApiKeyPaths.includes(req.path)) {
+    return next();
+  }
+  
+  // Check for API key in headers
+  const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+  
+  if (!apiKey) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'API key required. Please provide x-api-key header or Authorization Bearer token.' 
+    });
+  }
+  
+  // For admin endpoints, check admin token
+  if (req.path.startsWith('/api/admin/')) {
+    const adminToken = process.env.ADMIN_TOKEN || 'huglu-admin-token-2025';
+    if (apiKey !== adminToken) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid admin API key' 
+      });
+    }
+    return next();
+  }
+  
+  // For tenant endpoints, validate tenant API key
+  poolWrapper.execute(
+    'SELECT id, name, domain, subdomain, settings, isActive FROM tenants WHERE apiKey = ? AND isActive = true',
+    [apiKey]
+  ).then(([rows]) => {
+    if (rows.length === 0) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid or inactive API key' 
+      });
+    }
+    
+    req.tenant = rows[0];
+    if (req.tenant.settings) {
+      try { 
+        req.tenant.settings = JSON.parse(req.tenant.settings); 
+      } catch(_) {} 
+    }
+    next();
+  }).catch(error => {
+    console.error('❌ Error authenticating API key:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error authenticating API key' 
+    });
+  });
+});
+
 // Global SQL Injection Guard for all API routes
 app.use('/api', (req, res, next) => {
   try {
@@ -536,14 +599,13 @@ app.use('/api/user-data', userDataRoutes);
 app.use('/api/user-specific', userSpecificDataRoutes);
 
 // Recommendations Routes
-let authenticateTenant; // forward declaration
 try {
   const recRoutesFactory = require('./routes/recommendations');
-  // Delay init until after poolWrapper and authenticateTenant are defined
+  // Delay init until after poolWrapper is defined
   process.nextTick(() => {
     try {
       const recommendationService = new RecommendationService(poolWrapper);
-      const recRouter = recRoutesFactory(poolWrapper, recommendationService, authenticateTenant);
+      const recRouter = recRoutesFactory(poolWrapper, recommendationService);
       app.use('/api/recommendations', recRouter);
       console.log('✅ Recommendations routes mounted at /api/recommendations');
     } catch (e) {
@@ -803,34 +865,10 @@ app.put('/api/return-requests/:id/cancel', async (req, res) => {
 // İyzico Payment Endpoints
 const iyzicoService = new IyzicoService();
 
-// Ensure tenant auth middleware is defined before first usage
-if (typeof authenticateTenant !== 'function') {
-  authenticateTenant = function authenticateTenant(req, res, next) {
-    const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
-    if (!apiKey) {
-      return res.status(401).json({ success: false, message: 'API key required' });
-    }
-    poolWrapper.execute(
-      'SELECT id, name, domain, subdomain, settings, isActive FROM tenants WHERE apiKey = ? AND isActive = true',
-      [apiKey]
-    ).then(([rows]) => {
-      if (rows.length === 0) {
-        return res.status(401).json({ success: false, message: 'Invalid or inactive API key' });
-      }
-      req.tenant = rows[0];
-      if (req.tenant.settings) {
-        try { req.tenant.settings = JSON.parse(req.tenant.settings); } catch(_) {}
-      }
-      next();
-    }).catch(error => {
-      console.error('❌ Error authenticating tenant:', error);
-      res.status(500).json({ success: false, message: 'Error authenticating tenant' });
-    });
-  }
-}
+// Note: authenticateTenant middleware is now handled globally in the API key middleware above
 
 // Process credit card payment - NO CARD DATA STORED
-app.post('/api/payments/process', authenticateTenant, async (req, res) => {
+app.post('/api/payments/process', async (req, res) => {
   try {
     console.log('🔄 Processing payment - CARD DATA WILL NOT BE STORED');
     console.log('⚠️ SECURITY: Card information is processed but NOT saved to database');
@@ -1017,7 +1055,7 @@ app.post('/api/payments/process', authenticateTenant, async (req, res) => {
 });
 
 // Get payment status
-app.get('/api/payments/:paymentId/status', authenticateTenant, async (req, res) => {
+app.get('/api/payments/:paymentId/status', async (req, res) => {
   try {
     const { paymentId } = req.params;
 
@@ -1089,7 +1127,7 @@ app.get('/api/payments/test-cards', (req, res) => {
 });
 
 // Get user's returnable orders
-app.get('/api/orders/returnable', authenticateTenant, async (req, res) => {
+app.get('/api/orders/returnable', async (req, res) => {
   try {
     const { userId } = req.query;
     
@@ -2117,45 +2155,10 @@ app.delete('/api/tenants/:id', async (req, res) => {
   }
 });
 
-// Tenant authentication middleware
-authenticateTenant = function authenticateTenant(req, res, next) {
-  const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
-  
-  if (!apiKey) {
-    return res.status(401).json({ 
-      success: false, 
-      message: 'API key required' 
-    });
-  }
-  
-  // Find tenant by API key
-  poolWrapper.execute(
-    'SELECT id, name, domain, subdomain, settings, isActive FROM tenants WHERE apiKey = ? AND isActive = true',
-    [apiKey]
-  ).then(([rows]) => {
-    if (rows.length === 0) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid or inactive API key' 
-      });
-    }
-    
-    req.tenant = rows[0];
-    if (req.tenant.settings) {
-      req.tenant.settings = JSON.parse(req.tenant.settings);
-    }
-    next();
-  }).catch(error => {
-    console.error('❌ Error authenticating tenant:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error authenticating tenant' 
-    });
-  });
-}
+// Note: Tenant authentication is now handled globally in the API key middleware above
 
 // User endpoints (with tenant authentication)
-app.post('/api/users', authenticateTenant, async (req, res) => {
+app.post('/api/users', async (req, res) => {
   try {
     const { name, email, password, phone, birthDate, address, gender } = req.body;
     
@@ -2248,7 +2251,7 @@ app.post('/api/users', authenticateTenant, async (req, res) => {
   }
 });
 
-app.get('/api/users/:id', authenticateTenant, async (req, res) => {
+app.get('/api/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -2308,7 +2311,7 @@ app.get('/api/users/:id', authenticateTenant, async (req, res) => {
   }
 });
 
-app.post('/api/users/login', authenticateTenant, async (req, res) => {
+app.post('/api/users/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
@@ -2373,7 +2376,7 @@ app.post('/api/users/login', authenticateTenant, async (req, res) => {
   }
 });
 
-app.put('/api/users/:id', authenticateTenant, async (req, res) => {
+app.put('/api/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, phone, address, currentPassword, newPassword } = req.body;
@@ -2452,7 +2455,7 @@ app.put('/api/users/:id', authenticateTenant, async (req, res) => {
 });
 
 // Order endpoints (with tenant authentication)
-app.get('/api/orders/user/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/orders/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -2486,7 +2489,7 @@ app.get('/api/orders/user/:userId', authenticateTenant, async (req, res) => {
   }
 });
 
-app.post('/api/orders', authenticateTenant, async (req, res) => {
+app.post('/api/orders', async (req, res) => {
   try {
     const { 
       userId, totalAmount, status, shippingAddress, paymentMethod, items, 
@@ -2969,7 +2972,7 @@ app.delete('/api/admin/flash-deals/:id', authenticateAdmin, async (req, res) => 
 });
 
 // Get active flash deals (for mobile app)
-app.get('/api/flash-deals', authenticateTenant, async (req, res) => {
+app.get('/api/flash-deals', async (req, res) => {
   try {
     const now = new Date();
     
@@ -2998,7 +3001,7 @@ app.get('/api/flash-deals', authenticateTenant, async (req, res) => {
 });
 
 // Product endpoints (with tenant authentication)
-app.get('/api/products', authenticateTenant, async (req, res) => {
+app.get('/api/products', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -3034,7 +3037,7 @@ app.get('/api/products', authenticateTenant, async (req, res) => {
   }
 });
 
-app.get('/api/products/search', authenticateTenant, async (req, res) => {
+app.get('/api/products/search', async (req, res) => {
   try {
     const { q } = req.query;
     const search = String(q || '').trim();
@@ -3444,7 +3447,7 @@ async function startServer() {
   await createFlashDealsTable();
   
   // Cart endpoints
-  app.get('/api/cart/:userId', authenticateTenant, async (req, res) => {
+  app.get('/api/cart/:userId', async (req, res) => {
     try {
       const { userId } = req.params;
       
@@ -3464,7 +3467,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/cart', authenticateTenant, async (req, res) => {
+  app.post('/api/cart', async (req, res) => {
     try {
       const { userId, productId, quantity, variationString, selectedVariations, deviceId } = req.body;
       console.log(`🛒 Server: Adding to cart - User: ${userId}, Product: ${productId}, Quantity: ${quantity}`);
@@ -3556,7 +3559,7 @@ async function startServer() {
   const { NotificationService } = require('./services/notification-service');
 
   // Send order status notification
-  app.post('/api/notifications/order-status', authenticateTenant, async (req, res) => {
+  app.post('/api/notifications/order-status', async (req, res) => {
     try {
       const { userId, orderId, status, orderDetails } = req.body;
       const tenantId = req.tenant?.id || 1;
@@ -3573,7 +3576,7 @@ async function startServer() {
   });
 
   // Send stock notification
-  app.post('/api/notifications/stock', authenticateTenant, async (req, res) => {
+  app.post('/api/notifications/stock', async (req, res) => {
     try {
       const { userId, productId, productName, stockType } = req.body;
       const tenantId = req.tenant?.id || 1;
@@ -3590,7 +3593,7 @@ async function startServer() {
   });
 
   // Send price notification
-  app.post('/api/notifications/price', authenticateTenant, async (req, res) => {
+  app.post('/api/notifications/price', async (req, res) => {
     try {
       const { userId, productId, productName, priceChange } = req.body;
       const tenantId = req.tenant?.id || 1;
@@ -3607,7 +3610,7 @@ async function startServer() {
   });
 
   // Send campaign notification
-  app.post('/api/notifications/campaign', authenticateTenant, async (req, res) => {
+  app.post('/api/notifications/campaign', async (req, res) => {
     try {
       const { userId, campaign } = req.body;
       const tenantId = req.tenant?.id || 1;
@@ -3624,7 +3627,7 @@ async function startServer() {
   });
 
   // Send wallet notification
-  app.post('/api/notifications/wallet', authenticateTenant, async (req, res) => {
+  app.post('/api/notifications/wallet', async (req, res) => {
     try {
       const { userId, walletAction, amount, balance } = req.body;
       const tenantId = req.tenant?.id || 1;
@@ -3641,7 +3644,7 @@ async function startServer() {
   });
 
   // Send security notification
-  app.post('/api/notifications/security', authenticateTenant, async (req, res) => {
+  app.post('/api/notifications/security', async (req, res) => {
     try {
       const { userId, securityEvent, details } = req.body;
       const tenantId = req.tenant?.id || 1;
@@ -3658,7 +3661,7 @@ async function startServer() {
   });
 
   // Send personalized notification
-  app.post('/api/notifications/personalized', authenticateTenant, async (req, res) => {
+  app.post('/api/notifications/personalized', async (req, res) => {
     try {
       const { userId, recommendation } = req.body;
       const tenantId = req.tenant?.id || 1;
@@ -3675,7 +3678,7 @@ async function startServer() {
   });
 
   // Send scheduled notification
-  app.post('/api/notifications/scheduled', authenticateTenant, async (req, res) => {
+  app.post('/api/notifications/scheduled', async (req, res) => {
     try {
       const { userId, scheduleType, data } = req.body;
       const tenantId = req.tenant?.id || 1;
@@ -3692,7 +3695,7 @@ async function startServer() {
   });
 
   // Send bulk notification
-  app.post('/api/notifications/bulk', authenticateTenant, async (req, res) => {
+  app.post('/api/notifications/bulk', async (req, res) => {
     try {
       const { userIds, type, title, message, data } = req.body;
       const tenantId = req.tenant?.id || 1;
@@ -3709,7 +3712,7 @@ async function startServer() {
   });
 
   // Check cart before logout and send notification if items exist
-  app.post('/api/cart/check-before-logout', authenticateTenant, async (req, res) => {
+  app.post('/api/cart/check-before-logout', async (req, res) => {
     try {
       const { userId, deviceId } = req.body;
       const tenantId = req.tenant?.id || 1;
@@ -3837,7 +3840,7 @@ async function startServer() {
     }
   });
 
-  app.get('/api/cart/user/:userId', authenticateTenant, async (req, res) => {
+  app.get('/api/cart/user/:userId', async (req, res) => {
     try {
       const { userId } = req.params;
       const { deviceId } = req.query;
@@ -3870,7 +3873,7 @@ async function startServer() {
     }
   });
 
-  app.get('/api/cart/user/:userId/total', authenticateTenant, async (req, res) => {
+  app.get('/api/cart/user/:userId/total', async (req, res) => {
     try {
       const { userId } = req.params;
       const { deviceId } = req.query;
@@ -3899,7 +3902,7 @@ async function startServer() {
   });
 
   // Detailed total with campaigns applied
-  app.get('/api/cart/user/:userId/total-detailed', authenticateTenant, async (req, res) => {
+  app.get('/api/cart/user/:userId/total-detailed', async (req, res) => {
     try {
       const { userId } = req.params;
       const { deviceId } = req.query;
@@ -3983,7 +3986,7 @@ async function startServer() {
   });
 
   // Campaign endpoints
-  app.get('/api/campaigns', authenticateTenant, async (req, res) => {
+  app.get('/api/campaigns', async (req, res) => {
     try {
       const tenantId = req.tenant?.id || 1;
       const [rows] = await poolWrapper.execute(
@@ -3997,7 +4000,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/campaigns', authenticateTenant, async (req, res) => {
+  app.post('/api/campaigns', async (req, res) => {
     try {
       const tenantId = req.tenant?.id || 1;
       const { name, description, type, status = 'active', discountType, discountValue = 0, minOrderAmount = 0, maxDiscountAmount = null, applicableProducts = null, excludedProducts = null, startDate = null, endDate = null, isActive = true } = req.body;
@@ -4015,7 +4018,7 @@ async function startServer() {
     }
   });
 
-  app.delete('/api/cart/user/:userId', authenticateTenant, async (req, res) => {
+  app.delete('/api/cart/user/:userId', async (req, res) => {
     try {
       const { userId } = req.params;
       const { deviceId } = req.query;
@@ -4930,7 +4933,7 @@ app.post('/api/campaigns/segments/auto-create', authenticateAdmin, async (req, r
 });
 
 // Customer Segments API (for tenants)
-app.post('/api/campaigns/segments', authenticateTenant, async (req, res) => {
+app.post('/api/campaigns/segments', async (req, res) => {
   try {
     const { name, description, criteria } = req.body;
     
@@ -4960,7 +4963,7 @@ app.post('/api/campaigns/segments', authenticateTenant, async (req, res) => {
   }
 });
 
-app.get('/api/campaigns/segments', authenticateTenant, async (req, res) => {
+app.get('/api/campaigns/segments', async (req, res) => {
   try {
     const [segments] = await poolWrapper.execute(
       'SELECT * FROM customer_segments WHERE tenantId = ? ORDER BY createdAt DESC',
@@ -4985,7 +4988,7 @@ app.get('/api/campaigns/segments', authenticateTenant, async (req, res) => {
 });
 
 // Campaigns API
-app.post('/api/campaigns', authenticateTenant, async (req, res) => {
+app.post('/api/campaigns', async (req, res) => {
   try {
     const {
       name, description, type, targetSegmentId, discountType, discountValue,
@@ -5027,7 +5030,7 @@ app.post('/api/campaigns', authenticateTenant, async (req, res) => {
   }
 });
 
-app.get('/api/campaigns', authenticateTenant, async (req, res) => {
+app.get('/api/campaigns', async (req, res) => {
   try {
     const [campaigns] = await poolWrapper.execute(
       `SELECT c.*, cs.name as segmentName 
@@ -5057,7 +5060,7 @@ app.get('/api/campaigns', authenticateTenant, async (req, res) => {
 });
 
 // Customer Analytics API
-app.get('/api/campaigns/analytics/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/campaigns/analytics/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const internalUserId = await resolveInternalUserId(userId, req.tenant.id);
@@ -5104,7 +5107,7 @@ app.get('/api/campaigns/analytics/:userId', authenticateTenant, async (req, res)
 // Recommendation system removed: /api/campaigns/recommendations is deprecated
 
 // Campaign Usage Tracking
-app.post('/api/campaigns/usage', authenticateTenant, async (req, res) => {
+app.post('/api/campaigns/usage', async (req, res) => {
   try {
     const { campaignId, userId, orderId, discountAmount } = req.body;
     
@@ -5140,7 +5143,7 @@ app.post('/api/campaigns/usage', authenticateTenant, async (req, res) => {
 });
 
 // Get available campaigns for user
-app.get('/api/campaigns/available/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/campaigns/available/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -5195,7 +5198,7 @@ app.get('/api/campaigns/available/:userId', authenticateTenant, async (req, res)
 // ==================== DISCOUNT WHEEL API ====================
 
 // Spin discount wheel
-app.post('/api/discount-wheel/spin', authenticateTenant, async (req, res) => {
+app.post('/api/discount-wheel/spin', async (req, res) => {
   try {
     const { deviceId, ipAddress, userAgent } = req.body;
     
@@ -5290,7 +5293,7 @@ app.post('/api/discount-wheel/spin', authenticateTenant, async (req, res) => {
 });
 
 // Get user discount codes
-app.get('/api/discount-codes/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/discount-codes/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -5313,7 +5316,7 @@ app.get('/api/discount-codes/:userId', authenticateTenant, async (req, res) => {
 });
 
 // Validate discount code
-app.post('/api/discount-codes/validate', authenticateTenant, async (req, res) => {
+app.post('/api/discount-codes/validate', async (req, res) => {
   try {
     const { discountCode, userId, orderAmount } = req.body;
     
@@ -5382,7 +5385,7 @@ app.post('/api/discount-codes/validate', authenticateTenant, async (req, res) =>
 });
 
 // Use discount code
-app.post('/api/discount-codes/use', authenticateTenant, async (req, res) => {
+app.post('/api/discount-codes/use', async (req, res) => {
   try {
     const { discountCode, userId, orderId } = req.body;
     
@@ -5420,7 +5423,7 @@ app.post('/api/discount-codes/use', authenticateTenant, async (req, res) => {
 });
 
 // Check if device can spin
-app.get('/api/discount-wheel/check/:deviceId', authenticateTenant, async (req, res) => {
+app.get('/api/discount-wheel/check/:deviceId', async (req, res) => {
   try {
     const { deviceId } = req.params;
     
@@ -5461,7 +5464,7 @@ app.get('/api/discount-wheel/check/:deviceId', authenticateTenant, async (req, r
 // ==================== CHATBOT API ENDPOINTS ====================
 
 // Chatbot mesaj işleme endpoint'i
-app.post('/api/chatbot/message', authenticateTenant, async (req, res) => {
+app.post('/api/chatbot/message', async (req, res) => {
   try {
     const { message, actionType = 'text', userId } = req.body;
     
@@ -5497,7 +5500,7 @@ app.post('/api/chatbot/message', authenticateTenant, async (req, res) => {
 });
 
 // Chatbot analitik endpoint'i
-app.post('/api/chatbot/analytics', authenticateTenant, async (req, res) => {
+app.post('/api/chatbot/analytics', async (req, res) => {
   try {
     const { userId, message, intent, satisfaction } = req.body;
     
@@ -5516,7 +5519,7 @@ app.post('/api/chatbot/analytics', authenticateTenant, async (req, res) => {
 });
 
 // Chatbot FAQ endpoint'i
-app.get('/api/chatbot/faq', authenticateTenant, async (req, res) => {
+app.get('/api/chatbot/faq', async (req, res) => {
   try {
     const faqData = {
       'sipariş nasıl takip': 'Siparişinizi takip etmek için "Hesabım > Siparişlerim" bölümüne gidin veya sipariş numaranızla takip yapın.',
@@ -5972,7 +5975,7 @@ function getOrderStatusText(status) {
 // ==================== WALLET RECHARGE API ENDPOINTS ====================
 
 // Cüzdan bakiyesi sorgulama
-app.get('/api/wallet/balance/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/wallet/balance/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     // Resolve to internal numeric users.id to satisfy FK
@@ -6003,7 +6006,7 @@ app.get('/api/wallet/balance/:userId', authenticateTenant, async (req, res) => {
 });
 
 // Cüzdan para yükleme isteği oluştur
-app.post('/api/wallet/recharge-request', authenticateTenant, async (req, res) => {
+app.post('/api/wallet/recharge-request', async (req, res) => {
   try {
     const { userId, amount, paymentMethod, bankInfo } = req.body;
     
@@ -6113,7 +6116,7 @@ app.post('/api/wallet/recharge-request', authenticateTenant, async (req, res) =>
 });
 
 // Manuel para yükleme onayı (admin paneli için)
-app.post('/api/wallet/approve-recharge', authenticateTenant, async (req, res) => {
+app.post('/api/wallet/approve-recharge', async (req, res) => {
   try {
     const { requestId, adminUserId } = req.body;
     
@@ -6163,7 +6166,7 @@ app.post('/api/wallet/approve-recharge', authenticateTenant, async (req, res) =>
 });
 
 // Bekleyen para yükleme isteklerini listele (admin paneli için)
-app.get('/api/wallet/pending-requests', authenticateTenant, async (req, res) => {
+app.get('/api/wallet/pending-requests', async (req, res) => {
   try {
     const [rows] = await poolWrapper.execute(
       `SELECT r.*, u.name, u.email, u.phone 
@@ -6182,7 +6185,7 @@ app.get('/api/wallet/pending-requests', authenticateTenant, async (req, res) => 
 });
 
 // Cüzdan işlem geçmişi
-app.get('/api/wallet/transactions/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/wallet/transactions/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const { page = 1, limit = 20 } = req.query;
@@ -6323,7 +6326,7 @@ function getBankInfo(tenantId) {
 // ==================== REFERRAL ENDPOINTS ====================
 
 // Get user referral info
-app.get('/api/referral/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/referral/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -6363,7 +6366,7 @@ app.get('/api/referral/:userId', authenticateTenant, async (req, res) => {
 });
 
 // Use referral code
-app.post('/api/referral/use', authenticateTenant, async (req, res) => {
+app.post('/api/referral/use', async (req, res) => {
   try {
     const { referralCode, userId } = req.body;
     
@@ -6450,7 +6453,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
 // ==================== USER LEVEL SYSTEM API ====================
 
 // Get user level information
-app.get('/api/user-level/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/user-level/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -6504,7 +6507,7 @@ app.get('/api/user-level/:userId', authenticateTenant, async (req, res) => {
 });
 
 // Add EXP to user
-app.post('/api/user-level/:userId/add-exp', authenticateTenant, async (req, res) => {
+app.post('/api/user-level/:userId/add-exp', async (req, res) => {
   try {
     const { userId } = req.params;
     const { source, amount, description, orderId, productId } = req.body;
@@ -6527,7 +6530,7 @@ app.post('/api/user-level/:userId/add-exp', authenticateTenant, async (req, res)
 });
 
 // Add social share EXP
-app.post('/api/user-level/:userId/social-share-exp', authenticateTenant, async (req, res) => {
+app.post('/api/user-level/:userId/social-share-exp', async (req, res) => {
   try {
     const { userId } = req.params;
     const { platform, productId, expGain } = req.body;
@@ -6552,7 +6555,7 @@ app.post('/api/user-level/:userId/social-share-exp', authenticateTenant, async (
 });
 
 // Get user EXP history
-app.get('/api/user-level/:userId/history', authenticateTenant, async (req, res) => {
+app.get('/api/user-level/:userId/history', async (req, res) => {
   try {
     const { userId } = req.params;
     const { page = 1, limit = 20 } = req.query;
@@ -6583,7 +6586,7 @@ app.get('/api/user-level/:userId/history', authenticateTenant, async (req, res) 
 // ==================== SOCIAL CAMPAIGNS API ====================
 
 // Get user social tasks
-app.get('/api/social-tasks/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/social-tasks/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -6599,7 +6602,7 @@ app.get('/api/social-tasks/:userId', authenticateTenant, async (req, res) => {
 });
 
 // Share to social media
-app.post('/api/social-tasks/:userId/share', authenticateTenant, async (req, res) => {
+app.post('/api/social-tasks/:userId/share', async (req, res) => {
   try {
     const { userId } = req.params;
     const { platform, productId, shareText } = req.body;
@@ -6621,7 +6624,7 @@ app.post('/api/social-tasks/:userId/share', authenticateTenant, async (req, res)
 });
 
 // Get group discounts
-app.get('/api/group-discounts/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/group-discounts/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -6637,7 +6640,7 @@ app.get('/api/group-discounts/:userId', authenticateTenant, async (req, res) => 
 });
 
 // Get shopping competitions
-app.get('/api/competitions/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/competitions/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -6653,7 +6656,7 @@ app.get('/api/competitions/:userId', authenticateTenant, async (req, res) => {
 });
 
 // Get shared carts
-app.get('/api/cart-sharing/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/cart-sharing/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -6669,7 +6672,7 @@ app.get('/api/cart-sharing/:userId', authenticateTenant, async (req, res) => {
 });
 
 // Get buy together offers
-app.get('/api/buy-together/:userId', authenticateTenant, async (req, res) => {
+app.get('/api/buy-together/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     

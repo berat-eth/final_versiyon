@@ -9,6 +9,7 @@ import {
   FlatList
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ImprovedVoiceSearchButton from './ImprovedVoiceSearchButton';
 
 interface SearchBarProps {
   value: string;
@@ -83,6 +84,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     }, 0);
   };
 
+  const handleVoiceResult = (text: string) => {
+    onChangeText(text);
+    saveToHistory(text);
+    if (onSubmit) onSubmit();
+  };
+
+  const handleVoiceError = (error: string) => {
+    console.error('Sesli arama hatası:', error);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
@@ -101,6 +112,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           returnKeyType="search"
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+        />
+        <ImprovedVoiceSearchButton
+          onResult={handleVoiceResult}
+          onError={handleVoiceError}
+          onPermissionDenied={() => {
+            console.log('Mikrofon izni reddedildi');
+          }}
+          size="small"
+          style={styles.voiceButton}
+          showText={false}
+          autoRetry={true}
         />
         {value.length > 0 && (
           <TouchableOpacity onPress={() => onChangeText('')}>
@@ -167,6 +189,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1A1A2E',
     fontWeight: '500',
+  },
+  voiceButton: {
+    marginRight: 8,
   },
   clearIcon: {
     fontSize: 18,

@@ -18,7 +18,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Bu uygulama güvenli giriş için Face ID kullanır"
+        "NSFaceIDUsageDescription": "Bu uygulama güvenli giriş için Face ID kullanır",
+        "NSMicrophoneUsageDescription": "Bu uygulama sesli arama özelliği için mikrofon kullanır"
       }
     },
     "android": {
@@ -33,7 +34,8 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "NFC",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "RECORD_AUDIO"
       ],
       "package": "com.berat_3322.hugluoutdoor"
     },
@@ -50,6 +52,7 @@
       "expo-local-authentication",
       "expo-image-picker",
       "expo-secure-store",
+      "expo-av",
       [
         "react-native-nfc-manager",
         {
