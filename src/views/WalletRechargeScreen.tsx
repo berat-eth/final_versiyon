@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Colors } from '../theme/colors';
 import { Spacing, Shadows } from '../theme/theme';
 import { apiService } from '../utils/api-service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface WalletRechargeScreenProps {
   navigation: any;
@@ -44,13 +45,16 @@ export const WalletRechargeScreen: React.FC<WalletRechargeScreenProps> = ({ navi
   const loadWalletData = async () => {
     try {
       setLoading(true);
-      const response = await apiService.get(`/wallet/balance/1`); // Guest user ID
+      const raw = await AsyncStorage.getItem('currentUserId');
+      const uid = raw ? parseInt(raw, 10) : 1;
+      const userId = Number.isFinite(uid) && uid > 0 ? uid : 1;
+      const response = await apiService.get(`/wallet/balance/${userId}`);
       if (response.success) {
         setBalance(response.data.balance);
       }
       
       // İşlem geçmişini yükle
-      const historyResponse = await apiService.get(`/wallet/transactions/1`);
+      const historyResponse = await apiService.get(`/wallet/transactions/${userId}`);
       if (historyResponse.success) {
         setRechargeHistory(historyResponse.data.transactions);
       }
@@ -77,8 +81,11 @@ export const WalletRechargeScreen: React.FC<WalletRechargeScreenProps> = ({ navi
     try {
       setLoading(true);
       
+      const raw = await AsyncStorage.getItem('currentUserId');
+      const uid = raw ? parseInt(raw, 10) : 1;
+      const userId = Number.isFinite(uid) && uid > 0 ? uid : 1;
       const requestData = {
-        userId: 1, // Guest user ID
+        userId,
         amount: rechargeAmount,
         paymentMethod,
         bankInfo: paymentMethod === 'bank_transfer' ? {

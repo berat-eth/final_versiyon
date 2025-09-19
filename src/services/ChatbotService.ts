@@ -2,6 +2,7 @@ import { ChatMessage, QuickReply } from '../components/Chatbot';
 import { AnythingLLMService } from './AnythingLLMService';
 import { Linking } from 'react-native';
 import { apiService } from '../utils/api-service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface ChatbotResponse {
   text: string;
@@ -158,7 +159,7 @@ export class ChatbotService {
   private static faqData: { [key: string]: string } = {
     'sipariş nasıl takip': 'Siparişinizi takip etmek için "Hesabım > Siparişlerim" bölümüne gidin veya sipariş numaranızla takip yapın.',
     'kargo ücreti': '150 TL ve üzeri alışverişlerde kargo ücretsizdir. Altındaki siparişler için 19,90 TL kargo ücreti alınır.',
-    'iade nasıl': 'Ürünü teslim aldığınız tarihten itibren 14 gün içinde iade edebilirsiniz. "İade Taleplerim" bölümünden işlem yapın.',
+    'iade nasıl': 'Ürünü teslim aldığınız tarihten itibaren 14 gün içinde iade edebilirsiniz. "İade Taleplerim" bölümünden işlem yapın.',
     'ödeme yöntemleri': 'Kredi kartı, banka kartı, havale/EFT seçenekleri mevcuttur. Kapıda ödeme bulunmamaktadır.',
     'teslimat süresi': 'Stokta bulunan ürünler 1-3 iş günü içinde kargoya verilir. Teslimat süresi 1-5 iş günüdür.',
     'taksit': 'Kredi kartınızla 2, 3, 6, 9 ve 12 aya varan taksit seçenekleri kullanabilirsiniz.',
@@ -175,7 +176,7 @@ export class ChatbotService {
       const response = await apiService.post('/chatbot/message', {
         message,
         actionType,
-        userId: 1 // Guest user ID
+        userId: await this.getActiveUserId()
       });
 
       if (response.success && response.data) {
@@ -818,6 +819,16 @@ Kullanıcı ödeme hakkında soru soruyor.`;
   }
 
   // Yardımcı fonksiyonlar
+  private static async getActiveUserId(): Promise<number> {
+    try {
+      const raw = await AsyncStorage.getItem('currentUserId');
+      const uid = raw ? parseInt(raw, 10) : NaN;
+      return Number.isFinite(uid) && uid > 0 ? uid : 1;
+    } catch {
+      return 1;
+    }
+  }
+
   private static getOrderStatusText(status: string): string {
     const statusMap: { [key: string]: string } = {
       'pending': 'Beklemede',

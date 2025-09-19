@@ -25,6 +25,7 @@ import { ModernButton } from '../components/ui/ModernButton';
 import { Product } from '../utils/types';
 import { ProductController } from '../controllers/ProductController';
 import { CustomProductionController, CreateCustomProductionRequestData } from '../controllers/CustomProductionController';
+import { useAppContext } from '../contexts/AppContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const { width } = Dimensions.get('window');
@@ -60,6 +61,7 @@ interface SelectedProduct {
 
 export const CustomProductionScreen: React.FC<CustomProductionScreenProps> = ({ navigation }) => {
   const { t } = useLanguage();
+  const { state } = useAppContext();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -404,16 +406,16 @@ export const CustomProductionScreen: React.FC<CustomProductionScreenProps> = ({ 
     try {
       // Prepare request data
       const requestData: CreateCustomProductionRequestData = {
-        userId: 1, // Will be replaced with actual user context
+        userId: state.user?.id || 1,
         items: selectedProducts.map(item => ({
           productId: item.product.id,
           productPrice: item.product.price,
           quantity: item.quantity,
           customizations: item.customizations
         })),
-        customerName: 'Müşteri', // Will be replaced with actual user profile
-        customerEmail: 'customer@example.com', // Will be replaced with actual user profile
-        customerPhone: '', // Will be replaced with actual user profile
+        customerName: state.user?.name || 'Müşteri',
+        customerEmail: state.user?.email || 'customer@example.com',
+        customerPhone: state.user?.phone || '',
         notes: '' // Will be replaced with actual notes input
       };
 
@@ -445,7 +447,7 @@ export const CustomProductionScreen: React.FC<CustomProductionScreenProps> = ({ 
 
     try {
       const requestData: CreateCustomProductionRequestData = {
-        userId: 1, // Will be replaced with actual user context
+        userId: state.user?.id || 1,
         items: [], // Benden formu için ürün seçimi yok
         notes: `Benden Formu - ${bendenForm.description}`,
         bendenForm: {

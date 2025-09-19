@@ -236,6 +236,51 @@ app.use((req, res, next) => {
 const dbSecurity = new DatabaseSecurity();
 const inputValidator = new InputValidation();
 
+// Global SQL Injection Guard for all API routes
+app.use('/api', (req, res, next) => {
+  try {
+    // Reject overly long string inputs (basic hardening)
+    const MAX_LEN = 500;
+    const rejectLongStrings = (obj) => {
+      const stack = [obj];
+      while (stack.length) {
+        const cur = stack.pop();
+        if (cur == null) continue;
+        if (typeof cur === 'string') {
+          if (cur.length > MAX_LEN) return true;
+        } else if (Array.isArray(cur)) {
+          cur.forEach(v => stack.push(v));
+        } else if (typeof cur === 'object') {
+          Object.values(cur).forEach(v => stack.push(v));
+        }
+      }
+      return false;
+    };
+
+    if (rejectLongStrings({ params: req.params, query: req.query, body: req.body })) {
+      return res.status(400).json({ success: false, message: 'Input too long' });
+    }
+
+    // Generic numeric id validation for :id-like params
+    if (req.params && typeof req.params === 'object') {
+      for (const [k, v] of Object.entries(req.params)) {
+        if (/id$/i.test(k)) {
+          const num = Number(v);
+          if (!Number.isInteger(num) || num <= 0) {
+            return res.status(400).json({ success: false, message: `Invalid ${k}` });
+          }
+        }
+      }
+    }
+
+    const hasSqlPatterns = inputValidator.scanObjectForSqlInjection({ params: req.params, query: req.query, body: req.body });
+    if (hasSqlPatterns) return res.status(400).json({ success: false, message: 'Invalid input detected' });
+    next();
+  } catch (err) {
+    return res.status(400).json({ success: false, message: 'Invalid input' });
+  }
+});
+
 // Secure database configuration
 const dbConfig = dbSecurity.getSecureDbConfig();
 
@@ -518,6 +563,48 @@ try {
   console.warn('⚠️ Dealership routes could not be mounted:', e.message);
 }
 
+// Helper: generate unique 8-digit user_id
+async function generateUnique8DigitUserId() {
+  const min = 10000000;
+  const max = 99999999;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const candidate = String(Math.floor(Math.random() * (max - min + 1)) + min);
+    const [exists] = await poolWrapper.execute('SELECT id FROM users WHERE user_id = ? LIMIT 1', [candidate]);
+    if (!exists || exists.length === 0) return candidate;
+  }
+  throw new Error('Could not generate unique 8-digit user_id');
+}
+
+// Helper: ensure a specific user (by PK id) has 8-digit user_id; returns user_id
+async function ensureUserHasExternalId(userPk) {
+  if (!userPk) throw new Error('userPk required');
+  const [[row]] = await poolWrapper.execute('SELECT user_id FROM users WHERE id = ? LIMIT 1', [userPk]);
+  if (!row) throw new Error('User not found');
+  if (row.user_id && String(row.user_id).length === 8) return row.user_id;
+  const newId = await generateUnique8DigitUserId();
+  await poolWrapper.execute('UPDATE users SET user_id = ? WHERE id = ?', [newId, userPk]);
+  return newId;
+}
+
+// Helper: resolve user key (either numeric PK or 8-digit external user_id) to numeric PK
+async function resolveUserKeyToPk(userKey, tenantId = 1) {
+  if (userKey == null) throw new Error('userKey required');
+  const key = String(userKey).trim();
+  // If it looks like an 8-digit external id
+  if (/^\d{8}$/.test(key)) {
+    const [[row]] = await poolWrapper.execute(
+      'SELECT id FROM users WHERE user_id = ? AND tenantId = ? LIMIT 1',
+      [key, tenantId]
+    );
+    if (!row) throw new Error('User not found for external id');
+    return row.id;
+  }
+  // Else, try numeric PK
+  const num = Number(key);
+  if (!Number.isInteger(num) || num <= 0) throw new Error('Invalid user key');
+  return num;
+}
+
 // Admin: Reset all users' external 8-digit user_id
 app.post('/api/admin/users/reset-user-ids', async (req, res) => {
   try {
@@ -527,28 +614,11 @@ app.post('/api/admin/users/reset-user-ids', async (req, res) => {
       return res.json({ success: true, data: { updated: 0 }, message: 'No users to update' });
     }
 
-    // Helper to generate unique 8-digit numeric ID
-    const generateUserId = () => {
-      const min = 10000000;
-      const max = 99999999;
-      return String(Math.floor(Math.random() * (max - min + 1)) + min);
-    };
-
     // Ensure uniqueness by checking DB per generated id
     let updatedCount = 0;
     const mapping = [];
     for (const row of users) {
-      let newId;
-      // Try until unique
-      // Limit attempts to prevent infinite loop
-      for (let attempt = 0; attempt < 20; attempt++) {
-        const candidate = generateUserId();
-        const [exists] = await poolWrapper.execute('SELECT id FROM users WHERE user_id = ? LIMIT 1', [candidate]);
-        if (exists.length === 0) { newId = candidate; break; }
-      }
-      if (!newId) {
-        return res.status(500).json({ success: false, message: 'Could not generate unique user_id' });
-      }
+      const newId = await generateUnique8DigitUserId();
       await poolWrapper.execute('UPDATE users SET user_id = ? WHERE id = ?', [newId, row.id]);
       updatedCount++;
       mapping.push({ id: row.id, user_id: newId });
@@ -558,6 +628,40 @@ app.post('/api/admin/users/reset-user-ids', async (req, res) => {
   } catch (error) {
     console.error('❌ Error resetting user IDs:', error);
     res.status(500).json({ success: false, message: 'Error resetting user IDs' });
+  }
+});
+
+// Admin: Ensure ONE user has an 8-digit user_id (idempotent)
+app.post('/api/admin/users/:id/ensure-user-id', async (req, res) => {
+  try {
+    const userPk = parseInt(req.params.id, 10);
+    if (!Number.isInteger(userPk) || userPk <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid user id' });
+    }
+    const user_id = await ensureUserHasExternalId(userPk);
+    res.json({ success: true, data: { id: userPk, user_id } });
+  } catch (error) {
+    console.error('❌ ensure-user-id error:', error);
+    res.status(500).json({ success: false, message: 'ensure-user-id failed' });
+  }
+});
+
+// Admin: Ensure all users missing user_id get a new 8-digit id (non-destructive)
+app.post('/api/admin/users/ensure-missing-user-ids', async (req, res) => {
+  try {
+    const [rows] = await poolWrapper.execute('SELECT id FROM users WHERE (user_id IS NULL OR LENGTH(user_id) <> 8)', []);
+    let updated = 0;
+    const mapping = [];
+    for (const r of rows) {
+      const newId = await generateUnique8DigitUserId();
+      await poolWrapper.execute('UPDATE users SET user_id = ? WHERE id = ?', [newId, r.id]);
+      updated++;
+      mapping.push({ id: r.id, user_id: newId });
+    }
+    res.json({ success: true, data: { updated, mapping } });
+  } catch (error) {
+    console.error('❌ ensure-missing-user-ids error:', error);
+    res.status(500).json({ success: false, message: 'ensure-missing-user-ids failed' });
   }
 });
 
@@ -3024,7 +3128,11 @@ app.get('/api/products/category/:category', async (req, res) => {
 app.get('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await poolWrapper.execute('SELECT * FROM products WHERE id = ?', [id]);
+    const numericId = Number(id);
+    if (!Number.isInteger(numericId) || numericId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid product id' });
+    }
+    const [rows] = await poolWrapper.execute('SELECT * FROM products WHERE id = ?', [numericId]);
     
     if (rows.length > 0) {
       // Clean HTML entities from single product
@@ -3043,7 +3151,11 @@ app.get('/api/products/:id', async (req, res) => {
 app.get('/api/products/:productId/variations', async (req, res) => {
   try {
     const { productId } = req.params;
-    const [rows] = await poolWrapper.execute('SELECT * FROM product_variations WHERE productId = ?', [productId]);
+    const numericId = Number(productId);
+    if (!Number.isInteger(numericId) || numericId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid product id' });
+    }
+    const [rows] = await poolWrapper.execute('SELECT * FROM product_variations WHERE productId = ?', [numericId]);
     
     res.json({ success: true, data: rows });
   } catch (error) {
@@ -3055,7 +3167,11 @@ app.get('/api/products/:productId/variations', async (req, res) => {
 app.get('/api/variations/:variationId/options', async (req, res) => {
   try {
     const { variationId } = req.params;
-    const [rows] = await poolWrapper.execute('SELECT * FROM product_variation_options WHERE variationId = ?', [variationId]);
+    const numericId = Number(variationId);
+    if (!Number.isInteger(numericId) || numericId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid variation id' });
+    }
+    const [rows] = await poolWrapper.execute('SELECT * FROM product_variation_options WHERE variationId = ?', [numericId]);
     
     res.json({ success: true, data: rows });
   } catch (error) {
@@ -3067,7 +3183,11 @@ app.get('/api/variations/:variationId/options', async (req, res) => {
 app.get('/api/variation-options/:optionId', async (req, res) => {
   try {
     const { optionId } = req.params;
-    const [rows] = await poolWrapper.execute('SELECT * FROM product_variation_options WHERE id = ?', [optionId]);
+    const numericId = Number(optionId);
+    if (!Number.isInteger(numericId) || numericId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid option id' });
+    }
+    const [rows] = await poolWrapper.execute('SELECT * FROM product_variation_options WHERE id = ?', [numericId]);
     
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Variation option not found' });
@@ -3089,27 +3209,28 @@ app.post('/api/products/filter', async (req, res) => {
     
     if (category) {
       query += ' AND category = ?';
-      params.push(category);
+      params.push(String(category));
     }
     
     if (minPrice !== undefined) {
       query += ' AND price >= ?';
-      params.push(minPrice);
+      params.push(Number(minPrice));
     }
     
     if (maxPrice !== undefined) {
       query += ' AND price <= ?';
-      params.push(maxPrice);
+      params.push(Number(maxPrice));
     }
     
     if (brand) {
       query += ' AND brand = ?';
-      params.push(brand);
+      params.push(String(brand));
     }
     
     if (search) {
       query += ' AND (name LIKE ? OR description LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
+      const s = String(search).slice(0, 100);
+      params.push(`%${s}%`, `%${s}%`);
     }
     
     query += ' ORDER BY lastUpdated DESC';
@@ -3940,15 +4061,22 @@ app.get('/api/wallet/:userId/transactions', async (req, res) => {
 // Custom Production Requests API endpoints
 
 // Get all custom production requests for a user
-app.get('/api/custom-production-requests/:userId', async (req, res) => {
+app.get('/api/custom-production-requests/:userKey', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userKey } = req.params;
     const { limit = 50, offset = 0, status } = req.query;
     
-    console.log(`🎨 Getting custom production requests for user: ${userId}`);
+    console.log(`🎨 Getting custom production requests for userKey: ${userKey}`);
     
     // Default tenant ID
     const tenantId = 1;
+    // Resolve userKey to numeric PK
+    let numericUserId;
+    try {
+      numericUserId = await resolveUserKeyToPk(userKey, tenantId);
+    } catch (e) {
+      return res.status(400).json({ success: false, message: 'Invalid or unknown user' });
+    }
     
     let query = `
       SELECT cpr.*, 
@@ -3958,20 +4086,29 @@ app.get('/api/custom-production-requests/:userId', async (req, res) => {
                    'id', cpi.id,
                    'productId', cpi.productId,
                    'quantity', cpi.quantity,
-                   'customizations', cpi.customizations
+                   'customizations', cpi.customizations,
+                   'productName', p.name,
+                   'productImage', p.image,
+                   'productPrice', p.price
                  )
-               ) SEPARATOR '|||'
+               ) SEPARATOR '|||' 
              ) as items
       FROM custom_production_requests cpr
       LEFT JOIN custom_production_items cpi ON cpr.id = cpi.requestId
+      LEFT JOIN products p ON cpi.productId = p.id AND p.tenantId = cpr.tenantId
       WHERE cpr.userId = ? AND cpr.tenantId = ?
     `;
     
-    const params = [userId, tenantId];
+    const params = [numericUserId, tenantId];
     
     if (status) {
+      const s = String(status).toLowerCase();
+      const allowed = ['pending','review','design','production','shipped','completed','cancelled'];
+      if (!allowed.includes(s)) {
+        return res.status(400).json({ success: false, message: 'Invalid status' });
+      }
       query += ' AND cpr.status = ?';
-      params.push(status);
+      params.push(s);
     }
     
     query += `
@@ -4003,6 +4140,13 @@ app.get('/api/custom-production-requests/:userId', async (req, res) => {
         actualDeliveryDate: request.actualDeliveryDate,
         createdAt: request.createdAt,
         updatedAt: request.updatedAt,
+        // Quote fields (if present)
+        quoteAmount: request.quoteAmount ?? null,
+        quoteCurrency: request.quoteCurrency ?? null,
+        quoteStatus: request.quoteStatus ?? null,
+        quoteNotes: request.quoteNotes ?? null,
+        quotedAt: request.quotedAt ?? null,
+        quoteValidUntil: request.quoteValidUntil ?? null,
         items: items
       };
     });
@@ -4017,20 +4161,30 @@ app.get('/api/custom-production-requests/:userId', async (req, res) => {
 });
 
 // Get single custom production request
-app.get('/api/custom-production-requests/:userId/:requestId', async (req, res) => {
+app.get('/api/custom-production-requests/:userKey/:requestId', async (req, res) => {
   try {
-    const { userId, requestId } = req.params;
+    const { userKey, requestId } = req.params;
+    const numericRequestId = Number(requestId);
+    if (!Number.isInteger(numericRequestId) || numericRequestId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid id' });
+    }
     
-    console.log(`🎨 Getting custom production request: ${requestId} for user: ${userId}`);
+    console.log(`🎨 Getting custom production request: ${requestId} for userKey: ${userKey}`);
     
     // Default tenant ID
     const tenantId = 1;
+    let numericUserId;
+    try {
+      numericUserId = await resolveUserKeyToPk(userKey, tenantId);
+    } catch (e) {
+      return res.status(400).json({ success: false, message: 'Invalid or unknown user' });
+    }
     
     // Get request details
     const [requests] = await poolWrapper.execute(
       `SELECT * FROM custom_production_requests 
        WHERE id = ? AND userId = ? AND tenantId = ?`,
-      [requestId, userId, tenantId]
+      [numericRequestId, numericUserId, tenantId]
     );
     
     if (requests.length === 0) {
@@ -4046,7 +4200,7 @@ app.get('/api/custom-production-requests/:userId/:requestId', async (req, res) =
       LEFT JOIN products p ON cpi.productId = p.id
       WHERE cpi.requestId = ? AND cpi.tenantId = ?
       ORDER BY cpi.createdAt
-    `, [requestId, tenantId]);
+    `, [numericRequestId, tenantId]);
     
     const formattedRequest = {
       ...request,
@@ -6322,3 +6476,16 @@ app.get('/api/buy-together/:userId', authenticateTenant, async (req, res) => {
 }
 
 startServer().catch(console.error);
+
+// Global error handler: prevent leaking DB errors
+app.use((err, req, res, next) => {
+  try {
+    const isDbError = err && typeof err.message === 'string' && /sql|database|mysql|syntax/i.test(err.message);
+    if (isDbError) {
+      console.error('❌ DB error masked:', err.message);
+      return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  } catch (_) {}
+  console.error('❌ Error:', err);
+  res.status(500).json({ success: false, message: 'Internal server error' });
+});

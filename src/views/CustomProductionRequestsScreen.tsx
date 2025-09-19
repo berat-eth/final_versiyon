@@ -5,21 +5,23 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Colors } from '../theme/colors';
 import { Spacing } from '../theme/theme';
 import { CustomProductionController, CustomProductionRequest } from '../controllers/CustomProductionController';
+import { useAppContext } from '../contexts/AppContext';
 
 export const CustomProductionRequestsScreen: React.FC<{ navigation: any }> = () => {
+  const { state } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [requests, setRequests] = useState<CustomProductionRequest[]>([]);
 
   useEffect(() => {
-    loadData();
+    loadData(false);
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (forceRefresh: boolean = false) => {
     try {
       setLoading(true);
-      const userId = 1; // Will be replaced with actual user context
-      const data = await CustomProductionController.getCustomProductionRequests(userId);
+      const userId = state.user?.id || 1;
+      const data = await CustomProductionController.getCustomProductionRequests(userId, { forceRefresh });
       setRequests(data);
     } catch (error) {
       console.error('Error loading custom production requests:', error);
@@ -30,7 +32,7 @@ export const CustomProductionRequestsScreen: React.FC<{ navigation: any }> = () 
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await loadData(true);
     setRefreshing(false);
   };
 
@@ -60,8 +62,20 @@ export const CustomProductionRequestsScreen: React.FC<{ navigation: any }> = () 
     const steps = getSteps(item.status);
     const productNames = item.items.map(item => item.productName || 'Ürün').join(', ');
 
+    const hasQuote = item.quoteAmount != null && item.quoteStatus != null;
     return (
       <View style={styles.card}>
+        {hasQuote && (
+          <View style={styles.quoteRibbon}>
+            <Icon name="request-quote" size={16} color="#fff" />
+            <Text style={styles.quoteRibbonText}>
+              {item.quoteStatus === 'sent' && 'Teklif Gönderildi'}
+              {item.quoteStatus === 'accepted' && 'Teklif Onaylandı'}
+              {item.quoteStatus === 'rejected' && 'Teklif Reddedildi'}
+              {item.quoteStatus && !['sent','accepted','rejected'].includes(item.quoteStatus) && 'Teklif'}
+            </Text>
+          </View>
+        )}
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>{productNames}</Text>
           <StatusChip status={item.status} />
@@ -80,6 +94,81 @@ export const CustomProductionRequestsScreen: React.FC<{ navigation: any }> = () 
             <Text style={styles.metaText}>{item.totalQuantity} adet</Text>
           </View>
         </View>
+        {/* Ürün Kalemleri */}
+        <View style={styles.itemsSection}>
+          <Text style={styles.sectionHeader}>Ürünler</Text>
+          {item.items.map((sub, idx) => (
+            <View key={`${item.id}-row-${sub.id || idx}`} style={styles.itemRow}>
+              <View style={styles.itemLeft}>
+                <Icon name="checkroom" size={16} color={Colors.textMuted} />
+                <Text style={styles.itemName} numberOfLines={1}>{sub.productName || `Ürün #${sub.productId}`}</Text>
+              </View>
+              <View style={styles.itemRight}>
+                <Text style={styles.itemQty}>x{sub.quantity}</Text>
+              </View>
+            </View>
+          ))}
+          {item.items.some(s => (s as any).customizations?.text || (s as any).customizations?.logo || (s as any).customizations?.position) && (
+            <View style={styles.customizationSummary}>
+              <Icon name="tune" size={16} color={Colors.primary} />
+              <Text style={styles.customizationText}>Özelleştirme: {item.items.map(s => (s as any).customizations?.text).filter(Boolean).join(', ') || '—'}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Toplamlar */}
+        <View style={styles.totalsRow}>
+          <Text style={styles.totalLabel}>Toplam Adet</Text>
+          <Text style={styles.totalValue}>{item.totalQuantity}</Text>
+        </View>
+        {typeof item.totalAmount === 'number' && item.totalAmount > 0 && (
+          <View style={styles.totalsRow}>
+            <Text style={styles.totalLabel}>Tahmini Tutar</Text>
+            <Text style={styles.totalValue}>{item.totalAmount.toLocaleString('tr-TR')} TL</Text>
+          </View>
+        )}
+
+        {/* Teklif Kutucuğu */}
+        {hasQuote && (
+          <View style={styles.quoteBox}>
+            <View style={styles.quoteHeader}>
+              <Text style={styles.quoteTitle}>Gelen Teklif</Text>
+              <View style={[styles.quoteStatus, item.quoteStatus === 'accepted' ? styles.quoteAccepted : item.quoteStatus === 'rejected' ? styles.quoteRejected : styles.quoteSent]}>
+                <Text style={styles.quoteStatusText}>
+                  {item.quoteStatus === 'accepted' ? 'Onaylandı' : item.quoteStatus === 'rejected' ? 'Reddedildi' : 'Gönderildi'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.quoteBody}>
+              <View style={styles.quoteRow}>
+                <Text style={styles.quoteLabel}>Teklif Tutarı</Text>
+                <Text style={styles.quoteValue}>{(item.quoteAmount || 0).toLocaleString('tr-TR')} {item.quoteCurrency || 'TRY'}</Text>
+              </View>
+              {item.quoteValidUntil && (
+                <View style={styles.quoteRow}>
+                  <Text style={styles.quoteLabel}>Geçerlilik</Text>
+                  <Text style={styles.quoteValue}>{new Date(item.quoteValidUntil).toLocaleDateString('tr-TR')}</Text>
+                </View>
+              )}
+              {item.quoteNotes && (
+                <View style={styles.quoteNotes}>
+                  <Text style={styles.quoteNotesText}>{item.quoteNotes}</Text>
+                </View>
+              )}
+            </View>
+            {item.quoteStatus === 'sent' && (
+              <View style={styles.quoteActions}>
+                <TouchableOpacity style={[styles.quoteBtn, styles.quoteRejectBtn]} onPress={() => console.log('quote_reject', item.id)}>
+                  <Text style={styles.quoteBtnText}>Reddet</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.quoteBtn, styles.quoteAcceptBtn]} onPress={() => console.log('quote_accept', item.id)}>
+                  <Text style={[styles.quoteBtnText, styles.quoteAcceptBtnText]}>Kabul Et</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+
         <View style={styles.steps}>
           {steps.map(step => (
             <View key={`${item.id}-${step.key}`} style={styles.step}>
@@ -93,10 +182,14 @@ export const CustomProductionRequestsScreen: React.FC<{ navigation: any }> = () 
             <Icon name="chat-bubble-outline" size={18} color={Colors.primary} />
             <Text style={styles.actionText}>Mesaj Gönder</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Icon name="picture-as-pdf" size={18} color={Colors.primary} />
-            <Text style={styles.actionText}>Teklif PDF</Text>
-          </TouchableOpacity>
+          {hasQuote && (
+            <TouchableOpacity style={styles.actionButton}>
+              <Icon name="picture-as-pdf" size={18} color={Colors.primary} />
+              <Text style={styles.actionText}>
+                {`${(item.quoteAmount || 0).toLocaleString('tr-TR')} ${item.quoteCurrency || 'TRY'}`}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -132,6 +225,24 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  quoteRibbon: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+  },
+  quoteRibbonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -203,6 +314,174 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 16,
     marginTop: Spacing.md,
+  },
+  itemsSection: {
+    marginTop: Spacing.md,
+  },
+  sectionHeader: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  itemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    paddingRight: Spacing.sm,
+  },
+  itemName: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text,
+  },
+  itemRight: {},
+  itemQty: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  customizationSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    marginTop: Spacing.xs,
+  },
+  customizationText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    flex: 1,
+  },
+  totalsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.sm,
+  },
+  totalLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  totalValue: {
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: '700',
+  },
+  quoteBox: {
+    marginTop: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary + '0D',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  quoteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.primary + '1A',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.primary,
+  },
+  quoteTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  quoteStatus: {
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  quoteSent: {
+    backgroundColor: '#2563eb20',
+  },
+  quoteAccepted: {
+    backgroundColor: '#16a34a20',
+  },
+  quoteRejected: {
+    backgroundColor: '#dc262620',
+  },
+  quoteStatusText: {
+    fontSize: 12,
+    color: Colors.text,
+    fontWeight: '700',
+  },
+  quoteBody: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: 6,
+  },
+  quoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  quoteLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  quoteValue: {
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: '700',
+  },
+  quoteNotes: {
+    marginTop: 4,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 8,
+  },
+  quoteNotesText: {
+    fontSize: 12,
+    color: Colors.text,
+  },
+  quoteActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    padding: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.primary,
+    backgroundColor: Colors.primary + '10',
+  },
+  quoteBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  quoteRejectBtn: {
+    borderColor: '#dc2626',
+  },
+  quoteAcceptBtn: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary,
+  },
+  quoteBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  quoteAcceptBtnText: {
+    color: Colors.textOnPrimary,
   },
   actionButton: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import { apiService } from '../utils/api-service';
-import { CacheService, CacheTTL } from '../services/CacheService';
+// Cache devre dışı: Hesabım sayfası için her zaman taze veri çekilecek
 
 export interface CustomProductionRequest {
   id: number;
@@ -15,6 +15,13 @@ export interface CustomProductionRequest {
   actualDeliveryDate?: string;
   createdAt: string;
   updatedAt: string;
+  // Teklif alanları (admin panelden gönderilen)
+  quoteAmount?: number | null;
+  quoteCurrency?: string | null;
+  quoteStatus?: 'sent' | 'accepted' | 'rejected' | string | null;
+  quoteNotes?: string | null;
+  quotedAt?: string | null;
+  quoteValidUntil?: string | null;
   items: CustomProductionItem[];
 }
 
@@ -73,27 +80,20 @@ export interface CreateCustomProductionRequestData {
 export class CustomProductionController {
   // Get all custom production requests for a user
   static async getCustomProductionRequests(
-    userId: number, 
-    options: { limit?: number; offset?: number; status?: string } = {}
+    userId: number,
+    options: { limit?: number; offset?: number; status?: string; forceRefresh?: boolean } = {}
   ): Promise<CustomProductionRequest[]> {
     try {
       console.log(`🎨 Fetching custom production requests for user: ${userId}`);
       
-      const { limit = 50, offset = 0, status } = options;
+      const { limit = 50, offset = 0, status, forceRefresh = false } = options;
       
-      // Try cache first
-      const cacheKey = `cache:custom_requests:${userId}:${limit}:${offset}:${status || 'all'}`;
-      const cached = await CacheService.get<CustomProductionRequest[]>(cacheKey);
-      if (cached && cached.length >= 0) {
-        console.log(`🧠 Cache hit: ${cached.length} custom production requests`);
-        return cached;
-      }
+      // Cache devre dışı
 
       // Try API
-      const response = await apiService.getCustomProductionRequests(userId, { limit, offset, status });
+      const response = await apiService.getCustomProductionRequests(userId, { limit, offset, status, forceRefresh });
       if (response.success && response.data) {
         console.log(`✅ API returned ${response.data.length} custom production requests`);
-        CacheService.set(cacheKey, response.data, CacheTTL.MEDIUM).catch(() => {});
         return response.data;
       }
       
@@ -113,19 +113,12 @@ export class CustomProductionController {
     try {
       console.log(`🎨 Fetching custom production request: ${requestId} for user: ${userId}`);
       
-      // Try cache first
-      const cacheKey = `cache:custom_request:${userId}:${requestId}`;
-      const cached = await CacheService.get<CustomProductionRequest>(cacheKey);
-      if (cached) {
-        console.log(`🧠 Cache hit: custom production request ${requestId}`);
-        return cached;
-      }
+      // Cache devre dışı
 
       // Try API
       const response = await apiService.getCustomProductionRequest(userId, requestId);
       if (response.success && response.data) {
         console.log(`✅ API returned custom production request: ${response.data.requestNumber}`);
-        CacheService.set(cacheKey, response.data, CacheTTL.MEDIUM).catch(() => {});
         return response.data;
       }
       

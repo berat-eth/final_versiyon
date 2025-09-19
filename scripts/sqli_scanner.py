@@ -67,7 +67,7 @@ def check_response_anomalies(resp: requests.Response, baseline_status: int) -> d
     return issues
 
 
-def test_endpoint(session: requests.Session, base_url: str, endpoint: str, timeout: float) -> list:
+def test_endpoint(session: requests.Session, base_url: str, method: str, endpoint: str, timeout: float) -> list:
     results = []
     control_value = generate_control_value()
     url_control = endpoint.replace('{p}', control_value)
@@ -76,6 +76,7 @@ def test_endpoint(session: requests.Session, base_url: str, endpoint: str, timeo
     # Baseline (kontrol) isteği
     try:
         t0 = time.time()
+        # Şimdilik keşif amaçlı sadece GET gönderiyoruz, method'u sonuçlara ekliyoruz
         r0 = session.get(url_control_full, timeout=timeout)
         base_duration = time.time() - t0
         baseline_status = r0.status_code
@@ -120,6 +121,7 @@ def test_endpoint(session: requests.Session, base_url: str, endpoint: str, timeo
 
             results.append({
                 'endpoint': endpoint,
+                'method': method,
                 'tested_url': url_payload,
                 'payload': payload,
                 'status': r.status_code,
@@ -131,6 +133,7 @@ def test_endpoint(session: requests.Session, base_url: str, endpoint: str, timeo
         except Exception as e:
             results.append({
                 'endpoint': endpoint,
+                'method': method,
                 'tested_url': url_payload,
                 'payload': payload,
                 'error': str(e),
@@ -189,22 +192,30 @@ def run_scan():
     for method, path in endpoints:
         # Şimdilik tüm yöntemleri GET ile deneriz (keşif amaçlı). İleride POST/PUT için body eklenecek.
         for ep in build_test_patterns(method, path):
-            res = test_endpoint(session, BASE_URL, ep, TIMEOUT)
+            res = test_endpoint(session, BASE_URL, method, ep, TIMEOUT)
             summary.extend(res)
 
     found = 0
-    for item in summary:
-        if 'error' in item:
-            print(f"[ERROR] {item['endpoint']} | payload={item.get('payload')} | {item['error']}")
-            continue
-        has_issue = bool(item.get('issues'))
-        status = 'ISSUE' if has_issue else 'ok'
-        print(f"[{status}] {item['endpoint']} | payload={item['payload']} | status={item.get('status')} | duration={item.get('duration')}s | issues={item.get('issues')}")
-        body = item.get('body')
-        if body:
-            print(f"  body: {body}")
-        if has_issue:
-            found += 1
+    # Konsol çıktısını endpoint bazlı gruplu yaz
+    from collections import defaultdict
+    grouped = defaultdict(list)
+    for it in summary:
+        grouped[(it.get('method') or 'GET', it['endpoint'])].append(it)
+
+    for (mtd, ep), items in grouped.items():
+        print(f"\n== {mtd} {ep} ==")
+        for item in items:
+            if 'error' in item:
+                print(f"[ERROR] payload={item.get('payload')} | url={item.get('tested_url')} | {item['error']}")
+                continue
+            has_issue = bool(item.get('issues'))
+            status = 'ISSUE' if has_issue else 'ok'
+            print(f"[{status}] payload={item['payload']} | url={item.get('tested_url')} | status={item.get('status')} | duration={item.get('duration')}s | issues={item.get('issues')}")
+            body = item.get('body')
+            if body:
+                print(f"  body: {body}")
+            if has_issue:
+                found += 1
 
     print(f"\nToplam test: {len(summary)}, issue bulunan: {found}")
 
@@ -222,22 +233,23 @@ def run_scan():
         rf.write(f"Base URL: {BASE_URL}\n")
         rf.write(f"Endpoint sayısı: {len(endpoints)}\n")
         rf.write(f"Toplam test: {len(summary)} | Issue: {found}\n")
-        rf.write("\n--- Detaylar ---\n")
-        for item in summary:
-          if 'error' in item:
-            rf.write(f"[ERROR] {item['endpoint']} | payload={item.get('payload')} | {item['error']}\n")
-            continue
-          issues = item.get('issues') or {}
-          status = 'ISSUE' if issues else 'ok'
-          rf.write(f"[{status}] {item['endpoint']}\n")
-          rf.write(f"  URL: {item.get('tested_url')}\n")
-          rf.write(f"  Payload: {item.get('payload')}\n")
-          rf.write(f"  Status: {item.get('status')} | Duration: {item.get('duration')}s\n")
-          rf.write(f"  Issues: {issues}\n")
-          body = item.get('body')
-          if body:
-            rf.write(f"  Body: {body}\n")
-          rf.write("\n")
+        rf.write("\n--- Detaylar (Endpoint Bazlı) ---\n")
+        for (mtd, ep), items in grouped.items():
+          rf.write(f"\n## {mtd} {ep}\n")
+          for item in items:
+            if 'error' in item:
+              rf.write(f"[ERROR] payload={item.get('payload')} | url={item.get('tested_url')} | {item['error']}\n")
+              continue
+            issues = item.get('issues') or {}
+            status = 'ISSUE' if issues else 'ok'
+            rf.write(f"[{status}] payload={item.get('payload')}\n")
+            rf.write(f"  URL: {item.get('tested_url')}\n")
+            rf.write(f"  Status: {item.get('status')} | Duration: {item.get('duration')}s\n")
+            rf.write(f"  Issues: {issues}\n")
+            body = item.get('body')
+            if body:
+              rf.write(f"  Body: {body}\n")
+            rf.write("\n")
       print(f"Rapor yazıldı: {report_path}")
     except Exception as e:
       print(f"Rapor yazılırken hata: {e}")

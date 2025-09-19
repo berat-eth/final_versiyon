@@ -1081,13 +1081,16 @@ class ApiService {
 
   // Custom Production Requests API methods
   async getCustomProductionRequests(
-    userId: number, 
-    options: { limit?: number; offset?: number; status?: string } = {}
+    userId: number,
+    options: { limit?: number; offset?: number; status?: string; forceRefresh?: boolean } = {}
   ): Promise<ApiResponse<any[]>> {
-    const { limit = 50, offset = 0, status } = options;
+    const { limit = 50, offset = 0, status, forceRefresh } = options;
     let url = `/custom-production-requests/${userId}?limit=${limit}&offset=${offset}`;
     if (status) {
       url += `&status=${encodeURIComponent(status)}`;
+    }
+    if (forceRefresh) {
+      url += `&t=${Date.now()}`; // cache-buster
     }
     return this.request<any[]>(url);
   }
