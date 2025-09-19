@@ -40,7 +40,9 @@
     "mysql2": "^3.14.4",
     "node-cron": "^3.0.3",
     "react-native-async-storage": "^0.0.1",
-    "xml2js": "^0.6.2"
+    "xml2js": "^0.6.2",
+    "jsonwebtoken": "^9.0.2",
+    "express-slow-down": "^1.6.0"
   },
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",

@@ -26,6 +26,10 @@ const path = require('path');
 // Security modules
 const DatabaseSecurity = require('./security/database-security');
 const InputValidation = require('./security/input-validation');
+const AdvancedSecurity = require('./security/advanced-security');
+const JWTAuth = require('./security/jwt-auth');
+const APIEncryption = require('./security/api-encryption');
+const SecurityMonitor = require('./security/security-monitor');
 
 // Security utilities
 const SALT_ROUNDS = 12;
@@ -235,6 +239,28 @@ app.use((req, res, next) => {
 // Initialize security modules
 const dbSecurity = new DatabaseSecurity();
 const inputValidator = new InputValidation();
+const advancedSecurity = new AdvancedSecurity();
+const jwtAuth = new JWTAuth();
+const apiEncryption = new APIEncryption();
+const securityMonitor = new SecurityMonitor();
+
+// Advanced Security Middleware
+app.use('/api', advancedSecurity.createSecurityMiddleware());
+
+// Request Size Limiting
+app.use('/api', advancedSecurity.createRequestSizeLimit('10mb'));
+
+// Response Encryption Middleware
+app.use('/api', apiEncryption.createResponseEncryptionMiddleware({
+  encryptFields: ['password', 'email', 'phone', 'ssn'],
+  enabled: process.env.ENCRYPT_RESPONSES === 'true'
+}));
+
+// Request Decryption Middleware
+app.use('/api', apiEncryption.createRequestDecryptionMiddleware({
+  decryptFields: ['password', 'email', 'phone', 'ssn'],
+  enabled: process.env.DECRYPT_REQUESTS === 'true'
+}));
 
 // Global API Key Authentication for all API routes (except health and admin login)
 app.use('/api', (req, res, next) => {
@@ -591,6 +617,51 @@ app.get('/api/health', async (req, res) => {
     });
   }
 });
+
+// Security endpoints
+app.get('/api/security/status', (req, res) => {
+  try {
+    const securityReport = securityMonitor.getDetailedReport();
+    res.json({
+      success: true,
+      data: securityReport
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Security status could not be retrieved',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/security/report', (req, res) => {
+  try {
+    const report = {
+      advancedSecurity: advancedSecurity.getSecurityReport(),
+      jwtAuth: jwtAuth.getSecurityReport(),
+      apiEncryption: apiEncryption.getSecurityReport(),
+      securityMonitor: securityMonitor.getDetailedReport()
+    };
+    
+    res.json({
+      success: true,
+      data: report
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Security report could not be generated',
+      error: error.message
+    });
+  }
+});
+
+// JWT Token refresh endpoint
+app.post('/api/auth/refresh', jwtAuth.handleTokenRefresh.bind(jwtAuth));
+
+// Logout endpoint
+app.post('/api/auth/logout', jwtAuth.handleLogout.bind(jwtAuth));
 
 // User Data Routes
 app.use('/api/user-data', userDataRoutes);
