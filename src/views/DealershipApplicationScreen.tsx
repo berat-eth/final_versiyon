@@ -42,14 +42,28 @@ export default function DealershipApplicationScreen() {
       };
       const res = await apiService.post('/dealership/applications', payload);
       if (res?.success) {
-        Alert.alert('Başarılı', 'Başvurunuz alınmıştır. En kısa sürede sizinle iletişime geçeceğiz.');
-        setCompanyName('');
-        setFullName('');
-        setPhone('');
-        setEmail('');
-        setCity('');
-        setMessage('');
-        setEstimatedMonthlyRevenue('');
+        Alert.alert(
+          'Başarılı', 
+          'Başvurunuz alınmıştır. En kısa sürede sizinle iletişime geçeceğiz.',
+          [
+            {
+              text: 'Tamam',
+              onPress: () => {
+                // Formu temizle
+                setCompanyName('');
+                setFullName('');
+                setPhone('');
+                setEmail('');
+                setCity('');
+                setMessage('');
+                setEstimatedMonthlyRevenue('');
+                
+                // Başvurular listesine yönlendir
+                navigation.navigate('DealershipApplications');
+              }
+            }
+          ]
+        );
       } else {
         Alert.alert('Hata', res?.message || 'Başvuru gönderilemedi. Lütfen tekrar deneyin.');
       }

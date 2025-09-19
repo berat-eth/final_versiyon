@@ -339,10 +339,12 @@ export class UserController {
       const userName = await this.getUserPreference('user_name');
       const userPhone = await this.getUserPreference('user_phone');
       const userAddress = await this.getUserPreference('user_address');
+      const user8DigitId = await this.getUserPreference('user_8digit_id');
       
       if (userEmail && userName) {
         const user: User = {
           id: userId,
+          user_id: user8DigitId || undefined,
           name: userName,
           email: userEmail,
           password: '', // Don't store password in preferences

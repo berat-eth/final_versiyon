@@ -119,6 +119,57 @@ router.post('/applications/batch-status', express.json(), (req, res) => {
   }
 });
 
+// User: get user's applications by email
+router.get('/applications/user/:email', (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'E-posta adresi gerekli' });
+    }
+    
+    const items = readAll();
+    const userApplications = items.filter(app => 
+      app.email && app.email.toLowerCase() === email.toLowerCase()
+    );
+    
+    // Sort by date desc
+    userApplications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    res.json({ success: true, data: userApplications });
+  } catch (e) {
+    console.error('dealership user applications error:', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+});
+
+// User: get single application by ID and email
+router.get('/applications/:id/user/:email', (req, res) => {
+  try {
+    const { id, email } = req.params;
+    const applicationId = parseInt(id);
+    
+    if (!applicationId || !email) {
+      return res.status(400).json({ success: false, message: 'Geçersiz istek' });
+    }
+    
+    const items = readAll();
+    const application = items.find(app => 
+      app.id === applicationId && 
+      app.email && 
+      app.email.toLowerCase() === email.toLowerCase()
+    );
+    
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Başvuru bulunamadı' });
+    }
+    
+    res.json({ success: true, data: application });
+  } catch (e) {
+    console.error('dealership single application error:', e);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+});
+
 module.exports = router;
 
 

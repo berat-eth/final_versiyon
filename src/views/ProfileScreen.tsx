@@ -764,7 +764,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             <View style={styles.modernProfileInfo}>
               <Text style={styles.modernProfileName}>{currentUser.name}</Text>
               <Text style={styles.modernProfileEmail}>{currentUser.email}</Text>
-              <Text style={styles.modernProfileUserId}>Kullanıcı ID: {currentUser.user_id || 'Yükleniyor...'}</Text>
+              <Text style={styles.modernProfileUserId}>
+                Kullanıcı ID: {currentUser.user_id || currentUser.id}
+              </Text>
               <View style={styles.modernProfileBadge}>
                 <Icon name="verified" size={16} color="#10b981" />
                 <Text style={styles.modernProfileBadgeText}>Doğrulanmış Hesap</Text>
@@ -871,13 +873,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
 
           {/* Bayilik Başvurusu */}
-          <TouchableOpacity style={styles.modernMenuItem} onPress={() => navigation.navigate('DealershipApplication')}>
+          <TouchableOpacity style={styles.modernMenuItem} onPress={() => navigation.navigate('DealershipApplications')}>
             <View style={styles.simpleMenuIcon}>
               <Icon name="business" size={24} color="#6b7280" />
             </View>
             <View style={styles.modernMenuContent}>
-              <Text style={styles.modernMenuTitle}>Bayilik Başvurusu</Text>
-              <Text style={styles.modernMenuSubtitle}>Mağazanız için başvurun</Text>
+              <Text style={styles.modernMenuTitle}>Bayilik Başvurularım</Text>
+              <Text style={styles.modernMenuSubtitle}>Başvurularınızı görüntüleyin</Text>
             </View>
             <Icon name="chevron-right" size={24} color="#9ca3af" />
           </TouchableOpacity>

@@ -14,6 +14,8 @@ import { ProductDetailScreen } from '../views/ProductDetailScreen';
 import { CartScreen } from '../views/CartScreen';
 import { ProfileScreen } from '../views/ProfileScreen';
 import DealershipApplicationScreen from '../views/DealershipApplicationScreen';
+import DealershipApplicationsScreen from '../views/DealershipApplicationsScreen';
+import DealershipApplicationDetailScreen from '../views/DealershipApplicationDetailScreen';
 import OrderScreen from '../views/OrderScreen';
 import { OrdersScreen } from '../views/OrdersScreen';
 import OrderDetailScreen from '../views/OrderDetailScreen';
@@ -403,9 +405,29 @@ const ProfileStack = () => {
         options={{ title: 'Hesabım' }}
       />
       <Stack.Screen 
+        name="DealershipApplications" 
+        component={DealershipApplicationsScreen} 
+        options={({ navigation }) => ({
+          title: 'Bayilik Başvurularım',
+          headerRight: () => (
+            <TouchableOpacity
+              style={{ padding: 8, marginRight: 8 }}
+              onPress={() => navigation.navigate('DealershipApplication')}
+            >
+              <Icon name="add" size={24} color="#1e3c72" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+      <Stack.Screen 
         name="DealershipApplication" 
         component={DealershipApplicationScreen} 
         options={{ title: 'Bayilik Başvurusu' }}
+      />
+      <Stack.Screen 
+        name="DealershipApplicationDetail" 
+        component={DealershipApplicationDetailScreen as any} 
+        options={{ title: 'Başvuru Detayı' }}
       />
       <Stack.Screen 
         name="StoreLocator" 

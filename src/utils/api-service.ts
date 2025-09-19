@@ -1189,6 +1189,48 @@ class ApiService {
   async delete<T = any>(endpoint: string): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, 'DELETE');
   }
+
+  // Dealership Application Methods
+  async getDealershipApplications(email: string): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await this.get(`/dealership/applications/user/${encodeURIComponent(email)}`);
+      return response;
+    } catch (error) {
+      console.error('Error fetching dealership applications:', error);
+      return { success: false, message: 'Başvurular yüklenemedi' };
+    }
+  }
+
+  async getDealershipApplication(id: number, email: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.get(`/dealership/applications/${id}/user/${encodeURIComponent(email)}`);
+      return response;
+    } catch (error) {
+      console.error('Error fetching dealership application:', error);
+      return { success: false, message: 'Başvuru detayları yüklenemedi' };
+    }
+  }
+
+  async submitDealershipApplication(data: {
+    companyName: string;
+    fullName: string;
+    phone: string;
+    email: string;
+    city: string;
+    message?: string;
+    estimatedMonthlyRevenue: number;
+  }): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.post('/dealership/applications', {
+        ...data,
+        source: 'mobile-app'
+      });
+      return response;
+    } catch (error) {
+      console.error('Error submitting dealership application:', error);
+      return { success: false, message: 'Başvuru gönderilemedi' };
+    }
+  }
 }
 
 export const apiService = new ApiService();
