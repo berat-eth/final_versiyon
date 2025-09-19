@@ -78,6 +78,7 @@ interface UpdateItem {
 export type AppAction =
   | { type: 'SET_USER'; payload: UserState | null }
   | { type: 'UPDATE_USER'; payload: Partial<UserState> }
+  | { type: 'LOGOUT' }
   | { type: 'SET_CART'; payload: CartState }
   | { type: 'UPDATE_CART_ITEM'; payload: { itemId: number; updates: Partial<CartItem> } }
   | { type: 'ADD_CART_ITEM'; payload: CartItem }
@@ -145,6 +146,28 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         user: state.user ? { ...state.user, ...action.payload } : null,
+        realTimeUpdates: {
+          ...state.realTimeUpdates,
+          lastSync: new Date().toISOString(),
+        },
+      };
+
+    case 'LOGOUT':
+      return {
+        ...state,
+        user: null,
+        cart: {
+          ...initialState.cart,
+          lastUpdated: new Date().toISOString(),
+        },
+        orders: {
+          ...initialState.orders,
+          lastUpdated: new Date().toISOString(),
+        },
+        notifications: {
+          ...initialState.notifications,
+          lastUpdated: new Date().toISOString(),
+        },
         realTimeUpdates: {
           ...state.realTimeUpdates,
           lastSync: new Date().toISOString(),
@@ -365,6 +388,7 @@ interface AppContextType {
   markNotificationRead: (notificationId: string) => void;
   syncState: () => void;
   getPendingUpdates: () => UpdateItem[];
+  logout: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -505,6 +529,53 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     return state.realTimeUpdates.pendingUpdates;
   };
 
+  const logout = async () => {
+    try {
+      // Check cart before logout and send notification if needed
+      if (state.user && state.cart.items && state.cart.items.length > 0) {
+        try {
+          const { DiscountWheelController } = await import('../controllers/DiscountWheelController');
+          
+          let deviceId: string | undefined;
+          if (state.user.id === 1) {
+            try {
+              deviceId = await DiscountWheelController.getDeviceId();
+            } catch (e) {
+              console.warn('Device ID not available for guest user');
+            }
+          }
+          
+          const cartCheckResponse = await apiService.checkCartBeforeLogout(state.user.id, deviceId);
+          if (cartCheckResponse.success && cartCheckResponse.data?.hasItems) {
+            console.log(`📱 Cart abandonment notification sent for user ${state.user.id} with ${cartCheckResponse.data.itemCount} items`);
+            
+            // Send local push notification
+            try {
+              const { NtfyService } = await import('../services/NtfyService');
+              const ntfyService = new NtfyService();
+              await ntfyService.presentLocalNotification(
+                'Sepetinizde Ürünler Var!',
+                `Sepetinizde ${cartCheckResponse.data.itemCount} ürün var. Siparişinizi tamamlamak için geri dönün.`
+              );
+            } catch (notificationError) {
+              console.warn('⚠️ Local notification failed:', notificationError);
+            }
+          }
+        } catch (cartError) {
+          console.warn('⚠️ Cart check before logout failed:', cartError);
+          // Don't fail logout if cart check fails
+        }
+      }
+      
+      // Clear state
+      dispatch({ type: 'LOGOUT' });
+    } catch (error) {
+      console.error('❌ Error during logout:', error);
+      // Still clear state even if cart check fails
+      dispatch({ type: 'LOGOUT' });
+    }
+  };
+
   const contextValue: AppContextType = {
     state,
     dispatch,
@@ -517,6 +588,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     markNotificationRead,
     syncState,
     getPendingUpdates,
+    logout,
   };
 
   return (

@@ -268,6 +268,32 @@ export class UserController {
     try {
       console.log('🔄 User logout');
       
+      // Check cart before logout and send notification if needed
+      try {
+        const currentUser = await this.getCurrentUser();
+        if (currentUser) {
+          const { apiService } = await import('../utils/api-service');
+          const { DiscountWheelController } = await import('./DiscountWheelController');
+          
+          let deviceId: string | undefined;
+          if (currentUser.id === 1) {
+            try {
+              deviceId = await DiscountWheelController.getDeviceId();
+            } catch (e) {
+              console.warn('Device ID not available for guest user');
+            }
+          }
+          
+          const cartCheckResponse = await apiService.checkCartBeforeLogout(currentUser.id, deviceId);
+          if (cartCheckResponse.success && cartCheckResponse.data?.hasItems) {
+            console.log(`📱 Cart abandonment notification sent for user ${currentUser.id} with ${cartCheckResponse.data.itemCount} items`);
+          }
+        }
+      } catch (cartError) {
+        console.warn('⚠️ Cart check before logout failed:', cartError);
+        // Don't fail logout if cart check fails
+      }
+      
       // Clear local user data
       await this.setUserPreference('user_id', null);
       await this.setUserPreference('user_email', null);

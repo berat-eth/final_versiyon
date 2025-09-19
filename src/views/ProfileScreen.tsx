@@ -23,6 +23,7 @@ import { ProductController } from '../controllers/ProductController';
 import { UserLevelController } from '../controllers/UserLevelController';
 import { User, Order } from '../utils/types';
 import { UserLevelProgress } from '../models/UserLevel';
+import { useAppContext } from '../contexts/AppContext';
 import { UserLevelCard } from '../components/UserLevelCard';
 import { LoadingIndicator } from '../components/LoadingIndicator';
 import { useRealTimeUpdates } from '../hooks/useRealTimeUpdates';
@@ -114,6 +115,7 @@ const ProfileIcons = {
 };
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+  const { logout } = useAppContext();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -392,6 +394,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Use AppContext logout which includes cart check
+              await logout();
+              
               // Clear user controller data
               await UserController.logout();
               

@@ -3542,6 +3542,245 @@ async function startServer() {
     }
   });
 
+  // Notification endpoints
+  const { NotificationService } = require('./services/notification-service');
+
+  // Send order status notification
+  app.post('/api/notifications/order-status', authenticateTenant, async (req, res) => {
+    try {
+      const { userId, orderId, status, orderDetails } = req.body;
+      const tenantId = req.tenant?.id || 1;
+      
+      const result = await NotificationService.sendOrderStatusNotification(
+        tenantId, userId, orderId, status, orderDetails
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Order status notification error:', error);
+      res.status(500).json({ success: false, message: 'Bildirim gönderilemedi' });
+    }
+  });
+
+  // Send stock notification
+  app.post('/api/notifications/stock', authenticateTenant, async (req, res) => {
+    try {
+      const { userId, productId, productName, stockType } = req.body;
+      const tenantId = req.tenant?.id || 1;
+      
+      const result = await NotificationService.sendStockNotification(
+        tenantId, userId, productId, productName, stockType
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Stock notification error:', error);
+      res.status(500).json({ success: false, message: 'Bildirim gönderilemedi' });
+    }
+  });
+
+  // Send price notification
+  app.post('/api/notifications/price', authenticateTenant, async (req, res) => {
+    try {
+      const { userId, productId, productName, priceChange } = req.body;
+      const tenantId = req.tenant?.id || 1;
+      
+      const result = await NotificationService.sendPriceNotification(
+        tenantId, userId, productId, productName, priceChange
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Price notification error:', error);
+      res.status(500).json({ success: false, message: 'Bildirim gönderilemedi' });
+    }
+  });
+
+  // Send campaign notification
+  app.post('/api/notifications/campaign', authenticateTenant, async (req, res) => {
+    try {
+      const { userId, campaign } = req.body;
+      const tenantId = req.tenant?.id || 1;
+      
+      const result = await NotificationService.sendCampaignNotification(
+        tenantId, userId, campaign
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Campaign notification error:', error);
+      res.status(500).json({ success: false, message: 'Bildirim gönderilemedi' });
+    }
+  });
+
+  // Send wallet notification
+  app.post('/api/notifications/wallet', authenticateTenant, async (req, res) => {
+    try {
+      const { userId, walletAction, amount, balance } = req.body;
+      const tenantId = req.tenant?.id || 1;
+      
+      const result = await NotificationService.sendWalletNotification(
+        tenantId, userId, walletAction, amount, balance
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Wallet notification error:', error);
+      res.status(500).json({ success: false, message: 'Bildirim gönderilemedi' });
+    }
+  });
+
+  // Send security notification
+  app.post('/api/notifications/security', authenticateTenant, async (req, res) => {
+    try {
+      const { userId, securityEvent, details } = req.body;
+      const tenantId = req.tenant?.id || 1;
+      
+      const result = await NotificationService.sendSecurityNotification(
+        tenantId, userId, securityEvent, details
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Security notification error:', error);
+      res.status(500).json({ success: false, message: 'Bildirim gönderilemedi' });
+    }
+  });
+
+  // Send personalized notification
+  app.post('/api/notifications/personalized', authenticateTenant, async (req, res) => {
+    try {
+      const { userId, recommendation } = req.body;
+      const tenantId = req.tenant?.id || 1;
+      
+      const result = await NotificationService.sendPersonalizedNotification(
+        tenantId, userId, recommendation
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Personalized notification error:', error);
+      res.status(500).json({ success: false, message: 'Bildirim gönderilemedi' });
+    }
+  });
+
+  // Send scheduled notification
+  app.post('/api/notifications/scheduled', authenticateTenant, async (req, res) => {
+    try {
+      const { userId, scheduleType, data } = req.body;
+      const tenantId = req.tenant?.id || 1;
+      
+      const result = await NotificationService.sendScheduledNotification(
+        tenantId, userId, scheduleType, data
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Scheduled notification error:', error);
+      res.status(500).json({ success: false, message: 'Bildirim gönderilemedi' });
+    }
+  });
+
+  // Send bulk notification
+  app.post('/api/notifications/bulk', authenticateTenant, async (req, res) => {
+    try {
+      const { userIds, type, title, message, data } = req.body;
+      const tenantId = req.tenant?.id || 1;
+      
+      const result = await NotificationService.sendBulkNotification(
+        tenantId, userIds, type, title, message, data
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Bulk notification error:', error);
+      res.status(500).json({ success: false, message: 'Bildirim gönderilemedi' });
+    }
+  });
+
+  // Check cart before logout and send notification if items exist
+  app.post('/api/cart/check-before-logout', authenticateTenant, async (req, res) => {
+    try {
+      const { userId, deviceId } = req.body;
+      const tenantId = req.tenant?.id || 1;
+      
+      if (!userId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'userId is required' 
+        });
+      }
+      
+      // Get cart items for user
+      let cartQuery = 'SELECT c.*, p.name as productName, p.price FROM cart c JOIN products p ON c.productId = p.id WHERE c.tenantId = ?';
+      const cartParams = [tenantId];
+      
+      if (userId !== 1) {
+        cartQuery += ' AND c.userId = ?';
+        cartParams.push(userId);
+      } else {
+        cartQuery += ' AND c.userId = 1 AND c.deviceId = ?';
+        cartParams.push(deviceId || '');
+      }
+      
+      const [cartItems] = await poolWrapper.execute(cartQuery, cartParams);
+      
+      if (cartItems.length > 0) {
+        // User has items in cart, send notification
+        const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+        const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        
+        // Create notification data
+        const notificationData = {
+          type: 'cart_abandonment',
+          title: 'Sepetinizde Ürünler Var!',
+          message: `Sepetinizde ${totalItems} ürün var. Siparişinizi tamamlamak için geri dönün.`,
+          data: {
+            cartItems: cartItems.map(item => ({
+              id: item.id,
+              productId: item.productId,
+              productName: item.productName,
+              quantity: item.quantity,
+              price: item.price
+            })),
+            totalItems,
+            totalPrice,
+            userId,
+            deviceId
+          }
+        };
+        
+        // Add notification to database
+        await poolWrapper.execute(
+          'INSERT INTO user_notifications (tenantId, userId, type, title, message, data, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [tenantId, userId, notificationData.type, notificationData.title, notificationData.message, JSON.stringify(notificationData.data), new Date().toISOString()]
+        );
+        
+        // Note: Only push notification will be sent from frontend
+        // WhatsApp service removed as requested
+        
+        console.log(`📱 Cart abandonment notification sent for user ${userId} with ${totalItems} items`);
+        
+        res.json({ 
+          success: true, 
+          hasItems: true,
+          itemCount: totalItems,
+          totalPrice,
+          message: 'Sepetinizde ürünler var, bildirim gönderildi'
+        });
+      } else {
+        res.json({ 
+          success: true, 
+          hasItems: false,
+          message: 'Sepetinizde ürün yok'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error checking cart before logout:', error);
+      res.status(500).json({ success: false, message: 'Sepet kontrolü sırasında hata oluştu' });
+    }
+  });
+
   app.put('/api/cart/:cartItemId', async (req, res) => {
     try {
       const { cartItemId } = req.params;

@@ -670,6 +670,52 @@ class ApiService {
     return this.request(`/cart/${id}`, 'DELETE');
   }
 
+  async checkCartBeforeLogout(userId: number, deviceId?: string): Promise<ApiResponse<{
+    hasItems: boolean;
+    itemCount?: number;
+    totalPrice?: number;
+    message: string;
+  }>> {
+    return this.request('/cart/check-before-logout', 'POST', { userId, deviceId });
+  }
+
+  // Notification endpoints
+  async sendOrderStatusNotification(userId: number, orderId: number, status: string, orderDetails?: any): Promise<ApiResponse<boolean>> {
+    return this.request('/notifications/order-status', 'POST', { userId, orderId, status, orderDetails });
+  }
+
+  async sendStockNotification(userId: number, productId: number, productName: string, stockType: string): Promise<ApiResponse<boolean>> {
+    return this.request('/notifications/stock', 'POST', { userId, productId, productName, stockType });
+  }
+
+  async sendPriceNotification(userId: number, productId: number, productName: string, priceChange: any): Promise<ApiResponse<boolean>> {
+    return this.request('/notifications/price', 'POST', { userId, productId, productName, priceChange });
+  }
+
+  async sendCampaignNotification(userId: number, campaign: any): Promise<ApiResponse<boolean>> {
+    return this.request('/notifications/campaign', 'POST', { userId, campaign });
+  }
+
+  async sendWalletNotification(userId: number, walletAction: string, amount: number, balance: number): Promise<ApiResponse<boolean>> {
+    return this.request('/notifications/wallet', 'POST', { userId, walletAction, amount, balance });
+  }
+
+  async sendSecurityNotification(userId: number, securityEvent: string, details?: any): Promise<ApiResponse<boolean>> {
+    return this.request('/notifications/security', 'POST', { userId, securityEvent, details });
+  }
+
+  async sendPersonalizedNotification(userId: number, recommendation: any): Promise<ApiResponse<boolean>> {
+    return this.request('/notifications/personalized', 'POST', { userId, recommendation });
+  }
+
+  async sendScheduledNotification(userId: number, scheduleType: string, data: any): Promise<ApiResponse<boolean>> {
+    return this.request('/notifications/scheduled', 'POST', { userId, scheduleType, data });
+  }
+
+  async sendBulkNotification(userIds: number[], type: string, title: string, message: string, data?: any): Promise<ApiResponse<boolean>> {
+    return this.request('/notifications/bulk', 'POST', { userIds, type, title, message, data });
+  }
+
   async updateCartQuantity(id: number, quantity: number): Promise<ApiResponse<boolean>> {
     return this.request(`/cart/${id}/quantity`, 'PUT', { quantity });
   }
