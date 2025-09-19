@@ -161,24 +161,38 @@ class AdvancedSecurity {
    * Saldırı Paterni Tespiti
    */
   detectAttackPattern(req) {
+    // Güvenli parametreler whitelist'i
+    const safeParams = ['deviceId', 'userId', 'tenantId', 'page', 'limit', 'offset', 'sort', 'order'];
+    const safeParamPattern = new RegExp(`(${safeParams.join('|')})=[^&]*`, 'gi');
+    
+    // URL'den güvenli parametreleri çıkar
+    let cleanUrl = req.url;
+    cleanUrl = cleanUrl.replace(safeParamPattern, '');
+    
+    // DeviceId pattern'ini daha spesifik kontrol et
+    const deviceIdPattern = /deviceId=android_[0-9]+_[a-zA-Z0-9]+/gi;
+    if (deviceIdPattern.test(req.url)) {
+      cleanUrl = cleanUrl.replace(deviceIdPattern, '');
+    }
+    
     const patterns = [
       { name: 'SQL_INJECTION', regex: /('|(\\')|(;)|(\\;)|(union)|(select)|(drop)|(insert)|(update)|(delete))/gi },
       { name: 'XSS_ATTACK', regex: /<script|javascript:|on\w+\s*=|<iframe|<object|<embed/gi },
       { name: 'PATH_TRAVERSAL', regex: /\.\.\/|\.\.\\|%2e%2e%2f|%2e%2e%5c/gi },
       { name: 'COMMAND_INJECTION', regex: /[;&|`$()]/g },
-      { name: 'LDAP_INJECTION', regex: /[()=*!&|]/g }
+      { name: 'LDAP_INJECTION', regex: /\([^)]*\)|=\*|!\(|&\(|\|\(/g }
     ];
 
-    const url = req.url;
     const body = JSON.stringify(req.body || {});
     const query = JSON.stringify(req.query || {});
     const headers = JSON.stringify(req.headers || {});
 
     for (const pattern of patterns) {
-      if (pattern.regex.test(url + body + query + headers)) {
+      if (pattern.regex.test(cleanUrl + body + query + headers)) {
         this.logSecurityEvent('ATTACK_PATTERN_DETECTED', req.ip, {
           pattern: pattern.name,
-          url,
+          url: req.url,
+          cleanUrl,
           userAgent: req.get('User-Agent'),
           timestamp: new Date().toISOString()
         });
