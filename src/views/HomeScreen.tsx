@@ -684,6 +684,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       onPress={() => handleProductPress(item)}
       style={styles.productCard}
       noPadding
+      gradientBorder={true}
     >
       <View style={styles.productImageContainer}>
         <Image 
@@ -910,6 +911,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   onPress={() => handleProductPress(item)}
                   style={[styles.productCard, styles.flashProductCard] as any}
                   noPadding
+                  gradientBorder={true}
                 >
                   <View style={styles.productImageContainer}>
                     <Image 
@@ -1422,11 +1424,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   productList: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingRight: Spacing.xxl,
   },
   productCard: {
-    width: width * 0.45,
-    marginRight: Spacing.md,
+    width: width * 0.4,
+    marginRight: Spacing.xl + 15, // Çok daha fazla mesafe için
   },
   productImageContainer: {
     position: 'relative',
@@ -1559,18 +1562,18 @@ const styles = StyleSheet.create({
     color: '#ff6b35',
   },
   offerList: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
   },
   offerCard: {
     width: width * 0.8,
-    marginRight: Spacing.md,
+    marginRight: Spacing.lg,
     padding: Spacing.lg,
     borderRadius: 12,
     ...Shadows.medium,
   },
   modernOfferCard: {
     width: width * 0.8,
-    marginRight: Spacing.md,
+    marginRight: Spacing.lg,
     borderRadius: 20,
     overflow: 'hidden',
     ...Shadows.large,

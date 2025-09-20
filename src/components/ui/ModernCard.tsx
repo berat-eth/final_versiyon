@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, TouchableOpacity, ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../theme/colors';
 import { Spacing, Shadows } from '../../theme/theme';
 
@@ -11,6 +12,7 @@ interface ModernCardProps {
   margin?: number;
   style?: ViewStyle;
   noPadding?: boolean;
+  gradientBorder?: boolean;
 }
 
 export const ModernCard: React.FC<ModernCardProps> = ({
@@ -21,6 +23,7 @@ export const ModernCard: React.FC<ModernCardProps> = ({
   margin,
   style,
   noPadding = false,
+  gradientBorder = false,
 }) => {
   const getVariantStyles = (): ViewStyle => {
     switch (variant) {
@@ -42,7 +45,22 @@ export const ModernCard: React.FC<ModernCardProps> = ({
     }
   };
 
-  const content = (
+  const content = gradientBorder ? (
+    <View style={[styles.gradientWrapper, margin !== undefined && { margin }]}>
+      <View style={styles.gradientBorder}>
+        <View
+          style={[
+            styles.container,
+            getVariantStyles(),
+            !noPadding && { padding: padding || Spacing.md },
+            style,
+          ]}
+        >
+          {children}
+        </View>
+      </View>
+    </View>
+  ) : (
     <View
       style={[
         styles.container,
@@ -69,7 +87,16 @@ export const ModernCard: React.FC<ModernCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
+    borderRadius: 15, // Normal border radius
     overflow: 'hidden',
+  },
+  gradientWrapper: {
+    borderRadius: 16,
+  },
+  gradientBorder: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#8b5cf6', // Gradient'in ilk rengi
+    backgroundColor: 'transparent',
   },
 });

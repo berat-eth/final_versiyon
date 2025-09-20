@@ -19,11 +19,11 @@ export default function ReferralScreen({ navigation }: { navigation: any }) {
         const userId = await UserController.getCurrentUserId();
         const res = await apiService.getReferralInfo(userId);
         if (res.success && res.data) {
-          const { code, url, invitedCount, rewardBalance } = res.data as any;
-          setCode(code || '');
-          setUrl(url || '');
-          setInvitedCount(invitedCount || 0);
-          setRewardBalance(rewardBalance || 0);
+          const { referralCode, referralLink, referralCount, totalEarnings } = res.data as any;
+          setCode(referralCode || '');
+          setUrl(referralLink || '');
+          setInvitedCount(referralCount || 0);
+          setRewardBalance(totalEarnings || 0);
         }
       } catch (e) {
         console.error(e);
@@ -39,8 +39,15 @@ export default function ReferralScreen({ navigation }: { navigation: any }) {
       const userId = await UserController.getCurrentUserId();
       const res = await apiService.generateReferralLink(userId);
       if (res.success && res.data) {
-        setCode((res.data as any).code);
-        setUrl((res.data as any).url);
+        setCode(res.data.code);
+        setUrl(res.data.url);
+        // Refresh referral info to get updated stats
+        const refreshRes = await apiService.getReferralInfo(userId);
+        if (refreshRes.success && refreshRes.data) {
+          const { referralCount, totalEarnings } = refreshRes.data as any;
+          setInvitedCount(referralCount || 0);
+          setRewardBalance(totalEarnings || 0);
+        }
       } else {
         Alert.alert('Hata', 'Referans bağlantısı oluşturulamadı.');
       }

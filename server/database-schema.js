@@ -111,6 +111,31 @@ async function createDatabaseSchema(pool) {
     `);
     console.log('✅ Users table ready');
     
+    // User addresses table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS user_addresses (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userId INT NOT NULL,
+        tenantId INT NOT NULL,
+        addressType ENUM('shipping', 'billing') NOT NULL DEFAULT 'shipping',
+        fullName VARCHAR(255) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        address TEXT NOT NULL,
+        city VARCHAR(100) NOT NULL,
+        district VARCHAR(100),
+        postalCode VARCHAR(20),
+        isDefault BOOLEAN DEFAULT false,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (tenantId) REFERENCES tenants(id) ON DELETE CASCADE,
+        INDEX idx_user_tenant (userId, tenantId),
+        INDEX idx_address_type (addressType),
+        INDEX idx_is_default (isDefault)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('✅ User addresses table ready');
+    
     // Check if user_id column exists in users table and add it if it doesn't
     const [userColumns] = await pool.execute(`
       SELECT COLUMN_NAME 

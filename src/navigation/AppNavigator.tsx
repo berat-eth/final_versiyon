@@ -2,9 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Text, ActivityIndicator, View, Image, TouchableOpacity, StyleSheet, Animated, Modal, Pressable } from 'react-native';
+import { Text, ActivityIndicator, View, Image, TouchableOpacity, StyleSheet, Animated, Modal, Pressable, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Screens
 import { HomeScreen } from '../views/HomeScreen';
@@ -560,6 +561,7 @@ const TabNavigator = () => {
 const AppNavigatorContent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -568,6 +570,20 @@ const AppNavigatorContent = () => {
   const navigationRef = useRef<any>(null);
 
   useEffect(() => {
+    // Check if user has disabled welcome popup
+    const checkWelcomePopupPreference = async () => {
+      try {
+        const dontShow = await AsyncStorage.getItem('dont_show_welcome_popup');
+        if (dontShow === 'true') {
+          setDontShowAgain(true);
+        }
+      } catch (error) {
+        console.error('Error checking welcome popup preference:', error);
+      }
+    };
+
+    checkWelcomePopupPreference();
+
     // Splash screen animasyonları
     Animated.sequence([
       // Logo fade in ve scale
@@ -595,28 +611,30 @@ const AppNavigatorContent = () => {
     // App initialization
     const timer = setTimeout(() => {
       setIsLoading(false);
-      // Splash screen'den sonra welcome popup'ı göster
+      // Splash screen'den sonra welcome popup'ı göster (eğer kullanıcı devre dışı bırakmamışsa)
       setTimeout(() => {
-        setShowWelcomePopup(true);
-        // Welcome popup animasyonu
-        Animated.parallel([
-          Animated.timing(welcomeFadeAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.spring(welcomeScaleAnim, {
-            toValue: 1,
-            tension: 100,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-        ]).start();
+        if (!dontShowAgain) {
+          setShowWelcomePopup(true);
+          // Welcome popup animasyonu
+          Animated.parallel([
+            Animated.timing(welcomeFadeAnim, {
+              toValue: 1,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.spring(welcomeScaleAnim, {
+              toValue: 1,
+              tension: 100,
+              friction: 8,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
       }, 300);
     }, 2200);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [dontShowAgain]);
 
   if (isLoading) {
     return (
@@ -681,7 +699,16 @@ const AppNavigatorContent = () => {
   }
 
   // Welcome popup'ı kapatma fonksiyonu
-  const closeWelcomePopup = () => {
+  const closeWelcomePopup = async (savePreference = false) => {
+    if (savePreference) {
+      try {
+        await AsyncStorage.setItem('dont_show_welcome_popup', 'true');
+        setDontShowAgain(true);
+      } catch (error) {
+        console.error('Error saving welcome popup preference:', error);
+      }
+    }
+
     Animated.parallel([
       Animated.timing(welcomeFadeAnim, {
         toValue: 0,
@@ -713,7 +740,7 @@ const AppNavigatorContent = () => {
           visible={showWelcomePopup}
           transparent={true}
           animationType="none"
-          onRequestClose={closeWelcomePopup}
+          onRequestClose={() => closeWelcomePopup()}
         >
           <View style={welcomeStyles.overlay}>
             <Animated.View style={[
@@ -723,6 +750,15 @@ const AppNavigatorContent = () => {
                 transform: [{ scale: welcomeScaleAnim }]
               }
             ]}>
+              {/* Close Button */}
+              <TouchableOpacity 
+                style={welcomeStyles.closeButton}
+                onPress={() => closeWelcomePopup()}
+                activeOpacity={0.7}
+              >
+                <Icon name="close" size={24} color="#6b7280" />
+              </TouchableOpacity>
+
               {/* Background Pattern */}
               <View style={welcomeStyles.backgroundPattern}>
                 <View style={welcomeStyles.patternCircle1} />
@@ -731,53 +767,79 @@ const AppNavigatorContent = () => {
               </View>
               
               {/* Logo */}
-              <Image 
-                source={require('../../assets/logo.jpg')} 
-                style={welcomeStyles.logo}
-                resizeMode="contain"
-              />
+              <View style={welcomeStyles.logoContainer}>
+                <Image 
+                  source={require('../../assets/logo.jpg')} 
+                  style={welcomeStyles.logo}
+                  resizeMode="contain"
+                />
+                <View style={welcomeStyles.logoBadge}>
+                  <Text style={welcomeStyles.logoBadgeText}>YENİ</Text>
+                </View>
+              </View>
               
               {/* Welcome Text */}
-              <Text style={welcomeStyles.welcomeTitle}>
-                Hoş Geldiniz! 🎯
-              </Text>
-              
-              <Text style={welcomeStyles.welcomeSubtitle}>
-                Huğlu Outdoor'a hoş geldiniz
-              </Text>
-              
-              <Text style={welcomeStyles.welcomeDescription}>
-                Av tüfekleri ve outdoor ürünlerinde kalite ve güvenin adresi. 
-                En yeni ürünlerimizi keşfedin ve özel kampanyalarımızdan yararlanın.
-              </Text>
+              <View style={welcomeStyles.textContainer}>
+                <Text style={welcomeStyles.welcomeTitle}>
+                  Hoş Geldiniz! 🎯
+                </Text>
+                
+                <Text style={welcomeStyles.welcomeSubtitle}>
+                  Huğlu Outdoor'a hoş geldiniz
+                </Text>
+                
+                <Text style={welcomeStyles.welcomeDescription}>
+                  Av tüfekleri ve outdoor ürünlerinde kalite ve güvenin adresi. 
+                  En yeni ürünlerimizi keşfedin ve özel kampanyalarımızdan yararlanın.
+                </Text>
+              </View>
               
               {/* Features */}
               <View style={welcomeStyles.featuresContainer}>
                 <View style={welcomeStyles.featureItem}>
-                  <Text style={welcomeStyles.featureIcon}>🛡️</Text>
+                  <View style={welcomeStyles.featureIconContainer}>
+                    <Icon name="security" size={24} color="#3b82f6" />
+                  </View>
                   <Text style={welcomeStyles.featureText}>Kaliteli Ürünler</Text>
                 </View>
                 <View style={welcomeStyles.featureItem}>
-                  <Text style={welcomeStyles.featureIcon}>🚚</Text>
+                  <View style={welcomeStyles.featureIconContainer}>
+                    <Icon name="local-shipping" size={24} color="#10b981" />
+                  </View>
                   <Text style={welcomeStyles.featureText}>Hızlı Teslimat</Text>
                 </View>
                 <View style={welcomeStyles.featureItem}>
-                  <Text style={welcomeStyles.featureIcon}>💳</Text>
+                  <View style={welcomeStyles.featureIconContainer}>
+                    <Icon name="payment" size={24} color="#f59e0b" />
+                  </View>
                   <Text style={welcomeStyles.featureText}>Güvenli Ödeme</Text>
                 </View>
               </View>
               
-              {/* Action Button */}
-              <TouchableOpacity 
-                style={welcomeStyles.continueButton}
-                onPress={closeWelcomePopup}
-                activeOpacity={0.8}
-              >
-                <Text style={welcomeStyles.continueButtonText}>
-                  Keşfetmeye Başla
-                </Text>
-                <Text style={welcomeStyles.continueButtonIcon}>→</Text>
-              </TouchableOpacity>
+              {/* Action Buttons */}
+              <View style={welcomeStyles.buttonsContainer}>
+                <TouchableOpacity 
+                  style={welcomeStyles.continueButton}
+                  onPress={() => closeWelcomePopup()}
+                  activeOpacity={0.8}
+                >
+                  <Text style={welcomeStyles.continueButtonText}>
+                    Keşfetmeye Başla
+                  </Text>
+                  <Icon name="arrow-forward" size={20} color="white" />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={welcomeStyles.dontShowButton}
+                  onPress={() => closeWelcomePopup(true)}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="visibility-off" size={16} color="#6b7280" />
+                  <Text style={welcomeStyles.dontShowButtonText}>
+                    Bir daha gösterme
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </Animated.View>
           </View>
         </Modal>
@@ -946,10 +1008,45 @@ const welcomeStyles = StyleSheet.create({
     top: '50%',
     right: 10,
   },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: 24,
+  },
   logo: {
     width: 120,
     height: 120,
-    marginBottom: 24,
+  },
+  logoBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#ff4757',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  logoBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  textContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
   welcomeTitle: {
     fontSize: 28,
@@ -984,19 +1081,29 @@ const welcomeStyles = StyleSheet.create({
   featureItem: {
     alignItems: 'center',
     flex: 1,
+    paddingHorizontal: 8,
   },
-  featureIcon: {
-    fontSize: 24,
+  featureIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   featureText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1A1A2E',
+    color: '#495057',
     textAlign: 'center',
   },
+  buttonsContainer: {
+    width: '100%',
+    gap: 12,
+  },
   continueButton: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#3b82f6',
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 16,
@@ -1004,7 +1111,7 @@ const welcomeStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    shadowColor: '#1A1A2E',
+    shadowColor: '#3b82f6',
     shadowOffset: {
       width: 0,
       height: 4,
@@ -1019,10 +1126,20 @@ const welcomeStyles = StyleSheet.create({
     fontWeight: '700',
     marginRight: 8,
   },
-  continueButtonIcon: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+  dontShowButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+  },
+  dontShowButtonText: {
+    color: '#6b7280',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
   },
 });
 

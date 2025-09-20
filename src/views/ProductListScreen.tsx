@@ -439,8 +439,9 @@ export const ProductListScreen: React.FC<ProductListScreenProps> = ({ navigation
     return (
       <View style={{ 
         width: '50%', 
-        paddingLeft: index % 2 === 0 ? 0 : Spacing.xs,
-        paddingRight: index % 2 === 0 ? Spacing.xs : 0,
+        paddingLeft: index % 2 === 0 ? 0 : (Spacing.xs / 2) + 2.5,
+        paddingRight: index % 2 === 0 ? (Spacing.xs / 2) + 2.5 : 0,
+        marginBottom: 15, // Daha fazla alt mesafe
       }}>
         <ModernProductCard
           product={item}
@@ -808,6 +809,7 @@ const styles = StyleSheet.create({
   },
   productList: {
     padding: Spacing.md,
+    paddingBottom: Spacing.xxl,
   },
   emptyList: {
     flex: 1,

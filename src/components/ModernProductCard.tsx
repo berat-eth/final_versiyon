@@ -76,8 +76,9 @@ export const ModernProductCard: React.FC<ModernProductCardProps> = ({
     return (
       <ModernCard
         onPress={onPress}
-        style={[styles.horizontalCard, { width: cardWidth }]}
+        style={[styles.horizontalCard, { width: cardWidth }] as any}
         noPadding
+        gradientBorder={true}
       >
         <View style={styles.horizontalContent}>
           <View style={styles.horizontalImageContainer}>
@@ -155,7 +156,7 @@ export const ModernProductCard: React.FC<ModernProductCardProps> = ({
     return (
       <ModernCard
         onPress={onPress}
-        style={[styles.compactCard, { width: cardWidth }]}
+        style={[styles.compactCard, { width: cardWidth }] as any}
         noPadding
       >
         <View style={styles.compactImageContainer}>
@@ -190,8 +191,9 @@ export const ModernProductCard: React.FC<ModernProductCardProps> = ({
   return (
     <ModernCard
       onPress={onPress}
-      style={[styles.card, { width: cardWidth }]}
+      style={[styles.card, { width: cardWidth }] as any}
       noPadding
+      gradientBorder={true}
     >
       <View style={styles.imageContainer}>
         <Image 
@@ -263,7 +265,7 @@ export const ModernProductCard: React.FC<ModernProductCardProps> = ({
 const styles = StyleSheet.create({
   // Default card styles
   card: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg + 10, // Daha fazla mesafe
   },
   imageContainer: {
     height: 200,
@@ -387,7 +389,7 @@ const styles = StyleSheet.create({
 
   // Horizontal card styles
   horizontalCard: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg + 10, // Daha fazla mesafe
   },
   horizontalContent: {
     flexDirection: 'row',
@@ -438,7 +440,7 @@ const styles = StyleSheet.create({
 
   // Compact card styles
   compactCard: {
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md + 10, // Daha fazla mesafe
   },
   compactImageContainer: {
     height: 120,

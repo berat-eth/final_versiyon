@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,78 +9,70 @@ import {
   Alert,
   TextInput,
   Modal,
-  Dimensions,} from 'react-native';
+  FlatList,
+  RefreshControl,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Colors } from '../theme/colors';
+import { Spacing, Shadows } from '../theme/theme';
+import { ModernCard } from '../components/ui/ModernCard';
+import { ModernButton } from '../components/ui/ModernButton';
+import { LoadingIndicator } from '../components/LoadingIndicator';
+import { AddressService, Address, CreateAddressData } from '../services/AddressService';
 import { UserController } from '../controllers/UserController';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const { width, height } = Dimensions.get('window');
 
 interface AddressesScreenProps {
   navigation: any;
   route?: {
     params?: {
       selectMode?: boolean;
+      addressType?: 'shipping' | 'billing';
       onAddressSelected?: (address: Address) => void;
     };
   };
 }
 
-interface Address {
-  id: number;
-  fullName: string;
-  phone: string;
-  address: string;
-  city: string;
-  state?: string; // This maps to district in the UI
-  postalCode: string;
-  isDefault: boolean;
-  addressType?: string; // This maps to type in the UI
-  country?: string;
-}
-
 export const AddressesScreen: React.FC<AddressesScreenProps> = ({ navigation, route }) => {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
-
+  const [activeTab, setActiveTab] = useState<'shipping' | 'billing'>('shipping');
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [showInlineForm, setShowInlineForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CreateAddressData>({
+    addressType: 'shipping',
     fullName: '',
     phone: '',
     address: '',
     city: '',
     district: '',
     postalCode: '',
-    type: 'home' as 'home' | 'work' | 'other',
+    isDefault: false,
   });
 
   // Get params from navigation
   const selectMode = route?.params?.selectMode || false;
   const onAddressSelected = route?.params?.onAddressSelected;
+  const initialAddressType = route?.params?.addressType || 'shipping';
 
   useEffect(() => {
     loadUserAddresses();
+    setActiveTab(initialAddressType);
   }, []);
 
-  const loadUserAddresses = async () => {
+  const loadUserAddresses = useCallback(async () => {
     try {
       setLoading(true);
       const userId = await UserController.getCurrentUserId();
-      // Current user ID retrieved
       
       if (userId && userId > 0) {
         setCurrentUserId(userId);
-        const userAddresses = await UserController.getUserAddresses(userId);
-        // Loaded addresses
+        const userAddresses = await AddressService.getUserAddresses(userId);
         setAddresses(userAddresses);
       } else {
-        // No valid user ID found
         setAddresses([]);
       }
     } catch (error) {
@@ -88,131 +80,82 @@ export const AddressesScreen: React.FC<AddressesScreenProps> = ({ navigation, ro
       setAddresses([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
-  const getAddressIcon = (type?: string) => {
-    switch (type || 'shipping') {
-      case 'home':
-      case 'shipping':
-        return '🏠';
-      case 'work':
-        return '🏢';
-      case 'other':
-        return '📍';
-      default:
-        return '🏠';
-    }
-  };
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadUserAddresses();
+  }, [loadUserAddresses]);
 
-  const getAddressTypeText = (type?: string) => {
-    switch (type || 'shipping') {
-      case 'home':
-      case 'shipping':
-        return 'Ev';
-      case 'work':
-        return 'İş';
-      case 'other':
-        return 'Diğer';
-      default:
-        return 'Teslimat';
-    }
-  };
+  const filteredAddresses = addresses.filter(addr => addr.addressType === activeTab);
 
-  const openAddModal = () => {
-    setEditingAddress(null);
+  const openAddModal = useCallback(() => {
     setFormData({
+      addressType: activeTab,
       fullName: '',
       phone: '',
       address: '',
       city: '',
       district: '',
       postalCode: '',
-      type: 'home',
+      isDefault: filteredAddresses.length === 0, // İlk adres otomatik default
     });
-    setShowInlineForm(true);
-  };
+    setEditingAddress(null);
+    setIsModalVisible(true);
+  }, [activeTab, filteredAddresses.length]);
 
-  const openEditModal = (address: Address) => {
-    setEditingAddress(address);
+  const openEditModal = useCallback((address: Address) => {
     setFormData({
+      addressType: address.addressType,
       fullName: address.fullName,
       phone: address.phone,
       address: address.address,
       city: address.city,
-      district: address.state || '',
-      postalCode: address.postalCode,
-      type: (address.addressType === 'work' ? 'work' : address.addressType === 'other' ? 'other' : 'home') as 'home' | 'work' | 'other',
+      district: address.district || '',
+      postalCode: address.postalCode || '',
+      isDefault: address.isDefault,
     });
-    setShowInlineForm(true);
-  };
+    setEditingAddress(address);
+    setIsModalVisible(true);
+  }, []);
 
-  const handleSaveAddress = async () => {
-    // Get current user ID
-    const userId = currentUserId || await UserController.getCurrentUserId();
-    // Saving address for user ID
-    
-    if (!userId || userId <= 0) {
-      Alert.alert('Hata', 'Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.');
+  const handleSaveAddress = useCallback(async () => {
+    if (!currentUserId) {
+      Alert.alert('Hata', 'Kullanıcı bilgisi bulunamadı');
       return;
     }
 
     if (!formData.fullName || !formData.phone || !formData.address || !formData.city) {
-      Alert.alert('Hata', 'Lütfen tüm zorunlu alanları doldurun');
+      Alert.alert('Uyarı', 'Lütfen tüm zorunlu alanları doldurun');
       return;
     }
 
     try {
-      let success = false;
-      
       if (editingAddress) {
-        // Update existing address
-        success = await UserController.updateUserAddress(editingAddress.id, {
-          fullName: formData.fullName,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          district: formData.district,
-          postalCode: formData.postalCode,
-          isDefault: formData.type === 'home' // Home addresses are default
+        await AddressService.updateAddress({
+          id: editingAddress.id,
+          ...formData
         });
-        
-        if (success) {
-          Alert.alert('Başarılı', 'Adres güncellendi');
-        }
+        Alert.alert('Başarılı', 'Adres güncellendi');
       } else {
-        // Add new address
-        success = await UserController.addUserAddress(userId, {
-          title: formData.type === 'home' ? 'Ev' : formData.type === 'work' ? 'İş' : 'Diğer',
-          fullName: formData.fullName,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          district: formData.district,
-          postalCode: formData.postalCode,
-          isDefault: formData.type === 'home', // Home addresses are default
-          type: formData.type
-        });
-        
-        if (success) {
-          Alert.alert('Başarılı', 'Adres eklendi');
-        }
+        await AddressService.createAddress(currentUserId, formData);
+        Alert.alert('Başarılı', 'Adres eklendi');
       }
-
-      if (success) {
-        setShowInlineForm(false);
-        await loadUserAddresses(); // Reload addresses
-      }
+      
+      setIsModalVisible(false);
+      loadUserAddresses();
     } catch (error) {
       console.error('Error saving address:', error);
       Alert.alert('Hata', 'Adres kaydedilirken bir hata oluştu');
     }
-  };
+  }, [currentUserId, formData, editingAddress, loadUserAddresses]);
 
-  const handleDeleteAddress = async (address: Address) => {
+  const handleDeleteAddress = useCallback(async (address: Address) => {
     Alert.alert(
       'Adresi Sil',
-      'Bu adresi silmek istediğinize emin misiniz?',
+      'Bu adresi silmek istediğinizden emin misiniz?',
       [
         { text: 'İptal', style: 'cancel' },
         {
@@ -220,880 +163,642 @@ export const AddressesScreen: React.FC<AddressesScreenProps> = ({ navigation, ro
           style: 'destructive',
           onPress: async () => {
             try {
-              const success = await UserController.deleteUserAddress(address.id);
-              if (success) {
-                Alert.alert('Başarılı', 'Adres silindi');
-                await loadUserAddresses(); // Reload addresses
-              }
+              await AddressService.deleteAddress(address.id);
+              Alert.alert('Başarılı', 'Adres silindi');
+              loadUserAddresses();
             } catch (error) {
               console.error('Error deleting address:', error);
               Alert.alert('Hata', 'Adres silinirken bir hata oluştu');
             }
-          },
-        },
+          }
+        }
       ]
     );
-  };
+  }, [loadUserAddresses]);
 
-  const handleSetDefault = async (address: Address) => {
+  const handleSetDefault = useCallback(async (address: Address) => {
     try {
-      // Update all addresses to not default
-      for (const addr of addresses) {
-        if (addr.id !== address.id) {
-          await UserController.updateUserAddress(addr.id, { ...addr, isDefault: false });
-        }
-      }
-      
-      // Set this address as default
-      const success = await UserController.updateUserAddress(address.id, { ...address, isDefault: true });
-      
-      if (success) {
-        Alert.alert('Başarılı', 'Varsayılan adres güncellendi');
-        await loadUserAddresses(); // Reload addresses
-      }
+      await AddressService.setDefaultAddress(address.id);
+      Alert.alert('Başarılı', 'Varsayılan adres güncellendi');
+      loadUserAddresses();
     } catch (error) {
       console.error('Error setting default address:', error);
-      Alert.alert('Hata', 'Varsayılan adres ayarlanırken bir hata oluştu');
+      Alert.alert('Hata', 'Varsayılan adres güncellenirken bir hata oluştu');
     }
-  };
+  }, [loadUserAddresses]);
 
-  const handleSelectAddress = (address: Address) => {
+  const handleAddressSelect = useCallback((address: Address) => {
     if (selectMode && onAddressSelected) {
-      // Save selected address to AsyncStorage for cart
-      AsyncStorage.setItem('selected_delivery_address', JSON.stringify(address));
-      // Wrap callback in a try-catch to prevent potential errors
-      try {
-        onAddressSelected(address);
-      } catch (e) {
-        console.error('Error in address selection callback:', e);
-      }
+      onAddressSelected(address);
       navigation.goBack();
-    } else {
-      setSelectedAddress(address);
     }
-  };
+  }, [selectMode, onAddressSelected, navigation]);
 
-  return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
-      
-      {/* Simple Header */}
-      <SafeAreaView>
-        <View style={styles.simpleHeader}>
-          <TouchableOpacity 
-            style={styles.simpleBackButton} 
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="arrow-back" size={24} color="#374151" />
-          </TouchableOpacity>
-          
-          <View style={styles.simpleHeaderCenter}>
-            <Text style={styles.simpleHeaderTitle}>
-              {selectMode ? 'Adres Seç' : 'Adreslerim'}
+  const renderAddressItem = ({ item }: { item: Address }) => (
+    <ModernCard style={styles.addressCard}>
+      <View style={styles.addressHeader}>
+        <View style={styles.addressInfo}>
+          <View style={styles.addressTypeContainer}>
+            <Icon 
+              name={AddressService.getAddressTypeIcon(item.addressType)} 
+              size={20} 
+              color={AddressService.getAddressTypeColor(item.addressType)} 
+            />
+            <Text style={[styles.addressTypeText, { color: AddressService.getAddressTypeColor(item.addressType) }]}>
+              {AddressService.getAddressTypeText(item.addressType)}
             </Text>
+            {item.isDefault && (
+              <View style={styles.defaultBadge}>
+                <Text style={styles.defaultBadgeText}>Varsayılan</Text>
+              </View>
+            )}
           </View>
-
-          <TouchableOpacity style={styles.simpleAddButton} onPress={openAddModal}>
-            <Icon name="add" size={20} color="#3b82f6" />
+          <Text style={styles.addressName}>{item.fullName}</Text>
+          <Text style={styles.addressPhone}>{item.phone}</Text>
+        </View>
+        
+        <View style={styles.addressActions}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => openEditModal(item)}
+          >
+            <Icon name="edit" size={18} color={Colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleDeleteAddress(item)}
+          >
+            <Icon name="delete" size={18} color="#ef4444" />
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
 
-      <ScrollView 
-        style={styles.scrollContainer} 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <View style={styles.addressContent}>
+        <Text style={styles.addressText}>{item.address}</Text>
+        <Text style={styles.addressLocation}>
+          {item.district && `${item.district}, `}{item.city}
+          {item.postalCode && ` ${item.postalCode}`}
+        </Text>
+      </View>
 
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <LinearGradient
-              colors={['#f8f9fa', '#e9ecef']}
-              style={styles.loadingCard}
-            >
-              <Icon name="location-on" size={48} color="#6c757d" />
-              <Text style={styles.loadingText}>Adresleriniz yükleniyor...</Text>
-            </LinearGradient>
-          </View>
-        ) : addresses.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <LinearGradient
-              colors={['#667eea', '#764ba2']}
-              style={styles.emptyCard}
-            >
-              <Icon name="add-location" size={64} color="#FFFFFF" />
-              <Text style={styles.emptyTitle}>Henüz Adres Yok</Text>
-              <Text style={styles.emptyDescription}>
-                İlk adresinizi ekleyerek hızlı teslimat avantajından yararlanın
-              </Text>
-              <TouchableOpacity style={styles.emptyButton} onPress={openAddModal}>
-                <Icon name="add" size={20} color="#667eea" />
-                <Text style={styles.emptyButtonText}>İlk Adresimi Ekle</Text>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        ) : (
-          addresses.map((address, index) => (
-            <TouchableOpacity
-              key={address.id}
-              style={[
-                styles.simpleAddressCard,
-                selectedAddress?.id === address.id && styles.selectedCard,
-                address.isDefault && styles.defaultCard,
-                { marginBottom: index === addresses.length - 1 ? 100 : 12 }
-              ]}
-              onPress={() => handleSelectAddress(address)}
-              activeOpacity={0.7}
-            >
-              {/* Card Header */}
-              <View style={styles.simpleCardHeader}>
-                <View style={styles.addressInfo}>
-                  <Text style={styles.simpleName}>{address.fullName}</Text>
-                  <Text style={styles.simplePhone}>{address.phone}</Text>
-                </View>
-                
-                <View style={styles.simpleActions}>
-                  {address.isDefault && (
-                    <View style={styles.simpleDefaultBadge}>
-                      <Icon name="star" size={14} color="#ffc107" />
-                    </View>
-                  )}
-                  <TouchableOpacity
-                    style={styles.simpleActionButton}
-                    onPress={() => openEditModal(address)}
-                  >
-                    <Icon name="edit" size={18} color="#6c757d" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.simpleActionButton}
-                    onPress={() => handleDeleteAddress(address)}
-                  >
-                    <Icon name="delete" size={18} color="#dc3545" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Address Details */}
-              <View style={styles.simpleCardContent}>
-                <Text style={styles.simpleAddress} numberOfLines={2}>
-                  {address.address}
-                </Text>
-                <Text style={styles.simpleLocation}>
-                  {address.state}, {address.city} {address.postalCode}
-                </Text>
-              </View>
-
-              {/* Selection Indicator */}
-              {selectMode && (
-                <View style={styles.selectionIndicator}>
-                  <Icon 
-                    name={selectedAddress?.id === address.id ? "check-circle" : "radio-button-unchecked"} 
-                    size={20} 
-                    color={selectedAddress?.id === address.id ? "#28a745" : "#dee2e6"} 
-                  />
-                </View>
-              )}
-            </TouchableOpacity>
-          ))
+      <View style={styles.addressFooter}>
+        {!item.isDefault && (
+          <TouchableOpacity
+            style={styles.defaultButton}
+            onPress={() => handleSetDefault(item)}
+          >
+            <Icon name="star" size={16} color={Colors.primary} />
+            <Text style={styles.defaultButtonText}>Varsayılan Yap</Text>
+          </TouchableOpacity>
         )}
-
-        {/* Debug Info */}
-        {!loading && addresses.length === 0 && (
-          <View style={styles.debugContainer}>
-            <Text style={styles.debugText}>Debug: Current User ID = {currentUserId}</Text>
-            <Text style={styles.debugText}>Adres sayısı: {addresses.length}</Text>
-            <TouchableOpacity 
-              style={styles.debugButton}
-              onPress={async () => {
-                // Test user oluştur
-                const testUserId = 1;
-                await UserController.setUserPreference('user_id', testUserId);
-                await loadUserAddresses();
-              }}
-            >
-              <Text style={styles.debugButtonText}>Test Kullanıcısı Oluştur (ID: 1)</Text>
-            </TouchableOpacity>
-          </View>
+        
+        {selectMode && (
+          <TouchableOpacity
+            style={styles.selectButton}
+            onPress={() => handleAddressSelect(item)}
+          >
+            <Text style={styles.selectButtonText}>Seç</Text>
+          </TouchableOpacity>
         )}
+      </View>
+    </ModernCard>
+  );
 
-        {/* Inline Address Form */}
-        {showInlineForm && (
-          <View style={styles.inlineFormContainer}>
-            <View style={styles.inlineFormHeader}>
-              <Text style={styles.inlineFormTitle}>
-                {editingAddress ? 'Adresi Düzenle' : 'Yeni Adres Ekle'}
-              </Text>
-              <TouchableOpacity 
-                style={styles.inlineFormClose}
-                onPress={() => setShowInlineForm(false)}
-              >
-                <Icon name="close" size={20} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
+  if (loading) {
+    return <LoadingIndicator />;
+  }
 
-            <View style={styles.simpleFormContainer}>
-              <TextInput
-                style={styles.simpleInput}
-                placeholder="Ad Soyad"
-                placeholderTextColor="#9ca3af"
-                value={formData.fullName}
-                onChangeText={(text) => setFormData({ ...formData, fullName: text })}
-              />
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Icon name="arrow-back" size={24} color={Colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Adreslerim</Text>
+        <TouchableOpacity
+          onPress={openAddModal}
+          style={styles.addButton}
+        >
+          <Icon name="add" size={24} color={Colors.primary} />
+        </TouchableOpacity>
+      </View>
 
-              <TextInput
-                style={styles.simpleInput}
-                placeholder="Telefon Numarası"
-                placeholderTextColor="#9ca3af"
-                value={formData.phone}
-                onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                keyboardType="phone-pad"
-              />
-              
-              <TextInput
-                style={[styles.simpleInput, styles.simpleTextArea]}
-                placeholder="Açık Adres"
-                placeholderTextColor="#9ca3af"
-                value={formData.address}
-                onChangeText={(text) => setFormData({ ...formData, address: text })}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
+      {/* Tab Navigation */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'shipping' && styles.activeTab]}
+          onPress={() => setActiveTab('shipping')}
+        >
+          <Icon name="local-shipping" size={20} color={activeTab === 'shipping' ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.tabText, activeTab === 'shipping' && styles.activeTabText]}>
+            Teslimat ({addresses.filter(addr => addr.addressType === 'shipping').length})
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'billing' && styles.activeTab]}
+          onPress={() => setActiveTab('billing')}
+        >
+          <Icon name="receipt" size={20} color={activeTab === 'billing' ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.tabText, activeTab === 'billing' && styles.activeTabText]}>
+            Fatura ({addresses.filter(addr => addr.addressType === 'billing').length})
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-              <View style={styles.simpleInputRow}>
-                <TextInput
-                  style={[styles.simpleInput, { flex: 1, marginRight: 6 }]}
-                  placeholder="İl"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.city}
-                  onChangeText={(text) => setFormData({ ...formData, city: text })}
-                />
-
-                <TextInput
-                  style={[styles.simpleInput, { flex: 1, marginLeft: 6 }]}
-                  placeholder="İlçe"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.district}
-                  onChangeText={(text) => setFormData({ ...formData, district: text })}
-                />
-              </View>
-
-              <TextInput
-                style={styles.simpleInput}
-                placeholder="Posta Kodu (isteğe bağlı)"
-                placeholderTextColor="#9ca3af"
-                value={formData.postalCode}
-                onChangeText={(text) => setFormData({ ...formData, postalCode: text })}
-                keyboardType="numeric"
-              />
-
-              {/* Simple Type Selection */}
-              <View style={styles.simpleTypeSelection}>
-                {[
-                  { key: 'home', label: 'Ev' },
-                  { key: 'work', label: 'İş' },
-                  { key: 'other', label: 'Diğer' }
-                ].map((typeOption) => (
-                  <TouchableOpacity
-                    key={typeOption.key}
-                    style={[
-                      styles.simpleTypeButton,
-                      formData.type === typeOption.key && styles.simpleTypeButtonActive
-                    ]}
-                    onPress={() => setFormData({ ...formData, type: typeOption.key as any })}
-                  >
-                    <Text style={[
-                      styles.simpleTypeButtonText,
-                      formData.type === typeOption.key && styles.simpleTypeButtonTextActive
-                    ]}>
-                      {typeOption.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Form Buttons */}
-              <View style={styles.inlineFormButtons}>
-                <TouchableOpacity
-                  style={styles.inlineCancelButton}
-                  onPress={() => setShowInlineForm(false)}
-                >
-                  <Text style={styles.inlineCancelButtonText}>İptal</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.inlineSaveButton}
-                  onPress={handleSaveAddress}
-                >
-                  <Text style={styles.inlineSaveButtonText}>
-                    {editingAddress ? 'Güncelle' : 'Kaydet'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
-      </ScrollView>
+      {/* Address List */}
+      {filteredAddresses.length > 0 ? (
+        <FlatList
+          data={filteredAddresses}
+          renderItem={renderAddressItem}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          }
+        />
+      ) : (
+        <View style={styles.emptyState}>
+          <Icon 
+            name={AddressService.getAddressTypeIcon(activeTab)} 
+            size={64} 
+            color={Colors.textMuted} 
+          />
+          <Text style={styles.emptyStateTitle}>
+            {activeTab === 'shipping' ? 'Teslimat Adresiniz Yok' : 'Fatura Adresiniz Yok'}
+          </Text>
+          <Text style={styles.emptyStateDescription}>
+            {activeTab === 'shipping' 
+              ? 'İlk teslimat adresinizi ekleyerek hızlı teslimat avantajından yararlanın'
+              : 'Fatura adresinizi ekleyerek siparişlerinizi kolayca tamamlayın'
+            }
+          </Text>
+          <ModernButton
+            title={`${activeTab === 'shipping' ? 'Teslimat' : 'Fatura'} Adresi Ekle`}
+            onPress={openAddModal}
+            style={{ marginTop: Spacing.lg }}
+          />
+        </View>
+      )}
 
       {/* Add/Edit Address Modal */}
       <Modal
         visible={isModalVisible}
         animationType="slide"
-        transparent={true}
+        presentationStyle="pageSheet"
         onRequestClose={() => setIsModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modernModalContent}>
-            {/* Simple Modal Header */}
-            <View style={styles.simpleModalHeader}>
-              <TouchableOpacity 
-                style={styles.simpleModalBackButton} 
-                onPress={() => setIsModalVisible(false)}
-              >
-                <Icon name="close" size={24} color="#374151" />
-              </TouchableOpacity>
-              <Text style={styles.simpleModalTitle}>
-                {editingAddress ? 'Adresi Düzenle' : 'Yeni Adres Ekle'}
-              </Text>
-              <View style={styles.modalHeaderSpacer} />
-            </View>
-
-            <ScrollView style={styles.simpleModalBody} showsVerticalScrollIndicator={false}>
-              <View style={styles.simpleFormContainer}>
-                <TextInput
-                  style={styles.simpleInput}
-                  placeholder="Ad Soyad"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.fullName}
-                  onChangeText={(text) => setFormData({ ...formData, fullName: text })}
-                />
-
-                <TextInput
-                  style={styles.simpleInput}
-                  placeholder="Telefon Numarası"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.phone}
-                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                  keyboardType="phone-pad"
-                />
-                
-                <TextInput
-                  style={[styles.simpleInput, styles.simpleTextArea]}
-                  placeholder="Açık Adres"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.address}
-                  onChangeText={(text) => setFormData({ ...formData, address: text })}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                />
-
-                <View style={styles.simpleInputRow}>
-                  <TextInput
-                    style={[styles.simpleInput, { flex: 1, marginRight: 6 }]}
-                    placeholder="İl"
-                    placeholderTextColor="#9ca3af"
-                    value={formData.city}
-                    onChangeText={(text) => setFormData({ ...formData, city: text })}
-                  />
-
-                  <TextInput
-                    style={[styles.simpleInput, { flex: 1, marginLeft: 6 }]}
-                    placeholder="İlçe"
-                    placeholderTextColor="#9ca3af"
-                    value={formData.district}
-                    onChangeText={(text) => setFormData({ ...formData, district: text })}
-                  />
-                </View>
-
-                <TextInput
-                  style={styles.simpleInput}
-                  placeholder="Posta Kodu (isteğe bağlı)"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.postalCode}
-                  onChangeText={(text) => setFormData({ ...formData, postalCode: text })}
-                  keyboardType="numeric"
-                />
-
-                {/* Simple Type Selection */}
-                <View style={styles.simpleTypeSelection}>
-                  {[
-                    { key: 'home', label: 'Ev' },
-                    { key: 'work', label: 'İş' },
-                    { key: 'other', label: 'Diğer' }
-                  ].map((typeOption) => (
-                    <TouchableOpacity
-                      key={typeOption.key}
-                      style={[
-                        styles.simpleTypeButton,
-                        formData.type === typeOption.key && styles.simpleTypeButtonActive
-                      ]}
-                      onPress={() => setFormData({ ...formData, type: typeOption.key as any })}
-                    >
-                      <Text style={[
-                        styles.simpleTypeButtonText,
-                        formData.type === typeOption.key && styles.simpleTypeButtonTextActive
-                      ]}>
-                        {typeOption.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </ScrollView>
-
-            {/* Simple Modal Footer */}
-            <View style={styles.simpleModalFooter}>
-              <TouchableOpacity
-                style={styles.simpleCancelButton}
-                onPress={() => setIsModalVisible(false)}
-              >
-                <Text style={styles.simpleCancelButtonText}>İptal</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.simpleSaveButton}
-                onPress={handleSaveAddress}
-              >
-                <Text style={styles.simpleSaveButtonText}>
-                  {editingAddress ? 'Güncelle' : 'Kaydet'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setIsModalVisible(false)}
+              style={styles.modalCloseButton}
+            >
+              <Icon name="close" size={24} color={Colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>
+              {editingAddress ? 'Adresi Düzenle' : 'Yeni Adres Ekle'}
+            </Text>
+            <TouchableOpacity
+              onPress={handleSaveAddress}
+              style={styles.modalSaveButton}
+            >
+              <Text style={styles.modalSaveButtonText}>Kaydet</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Adres Türü</Text>
+              <View style={styles.addressTypeSelector}>
+                <TouchableOpacity
+                  style={[
+                    styles.addressTypeOption,
+                    formData.addressType === 'shipping' && styles.addressTypeOptionActive
+                  ]}
+                  onPress={() => setFormData({ ...formData, addressType: 'shipping' })}
+                >
+                  <Icon name="local-shipping" size={20} color={formData.addressType === 'shipping' ? 'white' : Colors.primary} />
+                  <Text style={[
+                    styles.addressTypeOptionText,
+                    formData.addressType === 'shipping' && styles.addressTypeOptionTextActive
+                  ]}>
+                    Teslimat
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.addressTypeOption,
+                    formData.addressType === 'billing' && styles.addressTypeOptionActive
+                  ]}
+                  onPress={() => setFormData({ ...formData, addressType: 'billing' })}
+                >
+                  <Icon name="receipt" size={20} color={formData.addressType === 'billing' ? 'white' : '#10b981'} />
+                  <Text style={[
+                    styles.addressTypeOptionText,
+                    formData.addressType === 'billing' && styles.addressTypeOptionTextActive
+                  ]}>
+                    Fatura
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Ad Soyad *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={formData.fullName}
+                onChangeText={(text) => setFormData({ ...formData, fullName: text })}
+                placeholder="Adınızı ve soyadınızı girin"
+                placeholderTextColor={Colors.textMuted}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Telefon *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={formData.phone}
+                onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                placeholder="Telefon numaranızı girin"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Adres *</Text>
+              <TextInput
+                style={[styles.formInput, styles.textArea]}
+                value={formData.address}
+                onChangeText={(text) => setFormData({ ...formData, address: text })}
+                placeholder="Mahalle, sokak, bina no, daire no"
+                placeholderTextColor={Colors.textMuted}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <View style={[styles.formGroup, styles.flex1]}>
+                <Text style={styles.formLabel}>İl *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.city}
+                  onChangeText={(text) => setFormData({ ...formData, city: text })}
+                  placeholder="İl"
+                  placeholderTextColor={Colors.textMuted}
+                />
+              </View>
+              
+              <View style={[styles.formGroup, styles.flex1]}>
+                <Text style={styles.formLabel}>İlçe</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.district}
+                  onChangeText={(text) => setFormData({ ...formData, district: text })}
+                  placeholder="İlçe"
+                  placeholderTextColor={Colors.textMuted}
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Posta Kodu</Text>
+              <TextInput
+                style={styles.formInput}
+                value={formData.postalCode}
+                onChangeText={(text) => setFormData({ ...formData, postalCode: text })}
+                placeholder="Posta kodu"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <TouchableOpacity
+                style={styles.checkboxContainer}
+                onPress={() => setFormData({ ...formData, isDefault: !formData.isDefault })}
+              >
+                <View style={[styles.checkbox, formData.isDefault && styles.checkboxActive]}>
+                  {formData.isDefault && <Icon name="check" size={16} color="white" />}
+                </View>
+                <Text style={styles.checkboxText}>Varsayılan adres olarak ayarla</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.background,
   },
-  
-  // Simple Header
-  simpleHeader: {
+  header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  simpleBackButton: {
-    padding: 8,
-  },
-  simpleHeaderCenter: {
-    flex: 1,
     alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: 'white',
+    ...Shadows.small,
   },
-  simpleHeaderTitle: {
+  backButton: {
+    padding: Spacing.sm,
+  },
+  headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: '700',
+    color: Colors.text,
   },
-  simpleAddButton: {
-    padding: 8,
-    backgroundColor: '#eff6ff',
-    borderRadius: 8,
+  addButton: {
+    padding: Spacing.sm,
   },
-  scrollContainer: {
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
+    borderRadius: 12,
+    padding: 4,
+    ...Shadows.small,
+  },
+  tab: {
     flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 100,
-  },
-  
-  // Loading State
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  loadingCard: {
-    padding: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    width: width - 40,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6c757d',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  
-  // Empty State
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyCard: {
-    padding: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    width: width - 40,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginTop: 20,
-    textAlign: 'center',
-  },
-  emptyDescription: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginTop: 12,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
+    justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 25,
-    marginTop: 30,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
   },
-  emptyButtonText: {
-    fontSize: 16,
+  activeTab: {
+    backgroundColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#667eea',
-    marginLeft: 8,
+    color: Colors.textMuted,
   },
-  
-  // Simple Address Cards
-  simpleAddressCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+  activeTabText: {
+    color: 'white',
   },
-  selectedCard: {
-    borderColor: '#10b981',
-    borderWidth: 2,
+  listContainer: {
+    padding: Spacing.lg,
   },
-  defaultCard: {
-    borderColor: '#fbbf24',
+  addressCard: {
+    marginBottom: Spacing.md,
+    ...Shadows.medium,
   },
-  simpleCardHeader: {
+  addressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    padding: Spacing.lg,
+    paddingBottom: Spacing.md,
   },
   addressInfo: {
     flex: 1,
   },
-  simpleName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  simplePhone: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  simpleActions: {
+  addressTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: Spacing.sm,
     gap: 8,
   },
-  simpleDefaultBadge: {
-    width: 24,
-    height: 24,
+  addressTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  defaultBadge: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: 12,
-    backgroundColor: '#fef3c7',
+    marginLeft: 8,
+  },
+  defaultBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'white',
+  },
+  addressName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  addressPhone: {
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+  addressActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  actionButton: {
+    padding: Spacing.sm,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+  },
+  addressContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  addressText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  addressLocation: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  addressFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+  },
+  defaultButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+  },
+  defaultButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  selectButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  selectButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+  },
+  emptyState: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: Spacing.xl,
   },
-  simpleActionButton: {
-    padding: 6,
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
-  simpleCardContent: {
-    marginBottom: 8,
-  },
-  simpleAddress: {
+  emptyStateDescription: {
     fontSize: 14,
-    color: '#374151',
-    marginBottom: 4,
+    color: Colors.textMuted,
+    textAlign: 'center',
     lineHeight: 20,
+    marginBottom: Spacing.lg,
   },
-  simpleLocation: {
-    fontSize: 13,
-    color: '#9ca3af',
-  },
-  selectionIndicator: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-  },
-  
-  // Modal Styles
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modernModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: height * 0.85,
-    overflow: 'hidden',
+    backgroundColor: Colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  modalBackButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: 'white',
+    ...Shadows.small,
+  },
+  modalCloseButton: {
+    padding: Spacing.sm,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    flex: 1,
-  },
-  modalHeaderSpacer: {
-    width: 36,
-  },
-  
-  // Simple Modal Header
-  simpleModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  simpleModalBackButton: {
-    padding: 8,
-  },
-  simpleModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    flex: 1,
-    textAlign: 'center',
-  },
-  
-  modalBody: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  
-  // Simple Form Styles
-  simpleModalBody: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  simpleFormContainer: {
-    padding: 20,
-  },
-  simpleInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
     fontSize: 16,
-    color: '#111827',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
+    fontWeight: '600',
+    color: Colors.text,
   },
-  simpleTextArea: {
-    minHeight: 80,
+  modalSaveButton: {
+    padding: Spacing.sm,
+  },
+  modalSaveButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  modalContent: {
+    flex: 1,
+    padding: Spacing.lg,
+  },
+  formGroup: {
+    marginBottom: Spacing.lg,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+  formInput: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  textArea: {
+    height: 80,
     textAlignVertical: 'top',
   },
-  simpleInputRow: {
+  row: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  flex1: {
+    flex: 1,
+  },
+  addressTypeSelector: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  addressTypeOption: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  
-  // Simple Type Selection
-  simpleTypeSelection: {
-    flexDirection: 'row',
-    marginTop: 8,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: 'white',
     gap: 8,
   },
-  simpleTypeButton: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  addressTypeOptionActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  simpleTypeButtonActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  simpleTypeButtonText: {
+  addressTypeOptionText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
-  simpleTypeButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  
-  // Simple Modal Footer
-  simpleModalFooter: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    gap: 12,
-  },
-  simpleCancelButton: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  simpleCancelButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
-  simpleSaveButton: {
-    flex: 1,
-    backgroundColor: '#3b82f6',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  simpleSaveButtonText: {
-    fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.text,
   },
-  
-  // Inline Form Styles
-  inlineFormContainer: {
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-    marginBottom: 100,
+  addressTypeOptionTextActive: {
+    color: 'white',
   },
-  inlineFormHeader: {
+  checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    gap: Spacing.sm,
   },
-  inlineFormTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  inlineFormClose: {
-    padding: 4,
-  },
-  inlineFormButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  inlineCancelButton: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 12,
-    borderRadius: 8,
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    backgroundColor: 'white',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  inlineCancelButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#6b7280',
+  checkboxActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  inlineSaveButton: {
-    flex: 1,
-    backgroundColor: '#3b82f6',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  inlineSaveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  
-  // Debug Styles
-  debugContainer: {
-    backgroundColor: '#fff3cd',
-    margin: 16,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ffeaa7',
-  },
-  debugText: {
+  checkboxText: {
     fontSize: 14,
-    color: '#856404',
-    marginBottom: 8,
-  },
-  debugButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginTop: 8,
-  },
-  debugButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
+    color: Colors.text,
   },
 });

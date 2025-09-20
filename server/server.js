@@ -735,6 +735,370 @@ app.post('/api/admin/users/ensure-missing-user-ids', async (req, res) => {
   }
 });
 
+// User Addresses Endpoints
+
+// Get user's addresses
+app.get('/api/user-addresses', async (req, res) => {
+  try {
+    const { userId, addressType } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required' });
+    }
+
+    let query = `
+      SELECT * FROM user_addresses 
+      WHERE userId = ? AND tenantId = ?
+    `;
+    let params = [userId, req.tenant.id];
+
+    if (addressType && (addressType === 'shipping' || addressType === 'billing')) {
+      query += ' AND addressType = ?';
+      params.push(addressType);
+    }
+
+    query += ' ORDER BY isDefault DESC, createdAt DESC';
+
+    const [addresses] = await poolWrapper.execute(query, params);
+
+    res.json({ success: true, data: addresses });
+  } catch (error) {
+    console.error('❌ Error fetching user addresses:', error);
+    res.status(500).json({ success: false, message: 'Error fetching addresses' });
+  }
+});
+
+// Create new address
+app.post('/api/user-addresses', async (req, res) => {
+  try {
+    const { userId, addressType, fullName, phone, address, city, district, postalCode, isDefault } = req.body;
+    
+    if (!userId || !addressType || !fullName || !phone || !address || !city) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields' 
+      });
+    }
+
+    if (addressType !== 'shipping' && addressType !== 'billing') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid address type. Must be shipping or billing' 
+      });
+    }
+
+    // If this is default address, remove default from others of same type
+    if (isDefault) {
+      await poolWrapper.execute(
+        'UPDATE user_addresses SET isDefault = false WHERE userId = ? AND tenantId = ? AND addressType = ?',
+        [userId, req.tenant.id, addressType]
+      );
+    }
+
+    const [result] = await poolWrapper.execute(`
+      INSERT INTO user_addresses (userId, tenantId, addressType, fullName, phone, address, city, district, postalCode, isDefault)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [userId, req.tenant.id, addressType, fullName, phone, address, city, district || null, postalCode || null, isDefault || false]);
+
+    res.json({ 
+      success: true, 
+      data: { addressId: result.insertId },
+      message: 'Address created successfully' 
+    });
+  } catch (error) {
+    console.error('❌ Error creating address:', error);
+    res.status(500).json({ success: false, message: 'Error creating address' });
+  }
+});
+
+// Update address
+app.put('/api/user-addresses/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { addressType, fullName, phone, address, city, district, postalCode, isDefault } = req.body;
+    
+    if (!addressType || !fullName || !phone || !address || !city) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields' 
+      });
+    }
+
+    if (addressType !== 'shipping' && addressType !== 'billing') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid address type. Must be shipping or billing' 
+      });
+    }
+
+    // If this is default address, remove default from others of same type
+    if (isDefault) {
+      await poolWrapper.execute(
+        'UPDATE user_addresses SET isDefault = false WHERE userId = (SELECT userId FROM user_addresses WHERE id = ?) AND tenantId = ? AND addressType = ? AND id != ?',
+        [id, req.tenant.id, addressType, id]
+      );
+    }
+
+    await poolWrapper.execute(`
+      UPDATE user_addresses 
+      SET addressType = ?, fullName = ?, phone = ?, address = ?, city = ?, district = ?, postalCode = ?, isDefault = ?, updatedAt = NOW()
+      WHERE id = ? AND tenantId = ?
+    `, [addressType, fullName, phone, address, city, district || null, postalCode || null, isDefault || false, id, req.tenant.id]);
+
+    res.json({ success: true, message: 'Address updated successfully' });
+  } catch (error) {
+    console.error('❌ Error updating address:', error);
+    res.status(500).json({ success: false, message: 'Error updating address' });
+  }
+});
+
+// Delete address
+app.delete('/api/user-addresses/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await poolWrapper.execute(
+      'DELETE FROM user_addresses WHERE id = ? AND tenantId = ?',
+      [id, req.tenant.id]
+    );
+    
+    res.json({ success: true, message: 'Address deleted successfully' });
+  } catch (error) {
+    console.error('❌ Error deleting address:', error);
+    res.status(500).json({ success: false, message: 'Error deleting address' });
+  }
+});
+
+// Set default address
+app.put('/api/user-addresses/:id/set-default', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get address details first
+    const [address] = await poolWrapper.execute(
+      'SELECT userId, addressType FROM user_addresses WHERE id = ? AND tenantId = ?',
+      [id, req.tenant.id]
+    );
+    
+    if (address.length === 0) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+    
+    const { userId, addressType } = address[0];
+    
+    // Remove default from others of same type
+    await poolWrapper.execute(
+      'UPDATE user_addresses SET isDefault = false WHERE userId = ? AND tenantId = ? AND addressType = ?',
+      [userId, req.tenant.id, addressType]
+    );
+    
+    // Set this address as default
+    await poolWrapper.execute(
+      'UPDATE user_addresses SET isDefault = true WHERE id = ? AND tenantId = ?',
+      [id, req.tenant.id]
+    );
+    
+    res.json({ success: true, message: 'Default address updated successfully' });
+  } catch (error) {
+    console.error('❌ Error setting default address:', error);
+    res.status(500).json({ success: false, message: 'Error setting default address' });
+  }
+});
+
+// Wallet Transfer Endpoints
+
+// Transfer money between users
+app.post('/api/wallet/transfer', async (req, res) => {
+  try {
+    const { fromUserId, toUserId, amount, description } = req.body;
+    
+    if (!fromUserId || !toUserId || !amount || amount <= 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing or invalid required fields' 
+      });
+    }
+
+    if (fromUserId === toUserId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot transfer to yourself' 
+      });
+    }
+
+    // Check if both users exist
+    const [fromUser] = await poolWrapper.execute(
+      'SELECT id, name FROM users WHERE id = ? AND tenantId = ?',
+      [fromUserId, req.tenant.id]
+    );
+    
+    const [toUser] = await poolWrapper.execute(
+      'SELECT id, name FROM users WHERE id = ? AND tenantId = ?',
+      [toUserId, req.tenant.id]
+    );
+
+    if (fromUser.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Sender user not found' 
+      });
+    }
+
+    if (toUser.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Receiver user not found' 
+      });
+    }
+
+    // Check sender's balance
+    const [senderBalance] = await poolWrapper.execute(
+      'SELECT balance FROM user_wallets WHERE userId = ? AND tenantId = ?',
+      [fromUserId, req.tenant.id]
+    );
+
+    if (senderBalance.length === 0 || senderBalance[0].balance < amount) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Insufficient balance' 
+      });
+    }
+
+    // Start transaction
+    const connection = await poolWrapper.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Deduct from sender
+      await connection.execute(
+        'UPDATE user_wallets SET balance = balance - ?, updatedAt = NOW() WHERE userId = ? AND tenantId = ?',
+        [amount, fromUserId, req.tenant.id]
+      );
+
+      // Add to receiver (create wallet if doesn't exist)
+      await connection.execute(`
+        INSERT INTO user_wallets (userId, tenantId, balance, createdAt, updatedAt)
+        VALUES (?, ?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE balance = balance + ?, updatedAt = NOW()
+      `, [toUserId, req.tenant.id, amount, amount]);
+
+      // Record outgoing transaction for sender
+      await connection.execute(`
+        INSERT INTO wallet_transactions (userId, tenantId, type, amount, description, referenceId, createdAt)
+        VALUES (?, ?, 'transfer_out', ?, ?, ?, NOW())
+      `, [fromUserId, req.tenant.id, -amount, description || `Transfer to ${toUser[0].name}`, `TRANSFER_OUT_${Date.now()}`]);
+
+      // Record incoming transaction for receiver
+      await connection.execute(`
+        INSERT INTO wallet_transactions (userId, tenantId, type, amount, description, referenceId, createdAt)
+        VALUES (?, ?, 'transfer_in', ?, ?, ?, NOW())
+      `, [toUserId, req.tenant.id, amount, description || `Transfer from ${fromUser[0].name}`, `TRANSFER_IN_${Date.now()}`]);
+
+      await connection.commit();
+
+      res.json({ 
+        success: true, 
+        message: 'Transfer completed successfully',
+        data: {
+          transferId: `TRANSFER_${Date.now()}`,
+          amount,
+          fromUser: fromUser[0].name,
+          toUser: toUser[0].name
+        }
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('❌ Error processing transfer:', error);
+    res.status(500).json({ success: false, message: 'Error processing transfer' });
+  }
+});
+
+// Get transfer history
+app.get('/api/wallet/transfers', async (req, res) => {
+  try {
+    const { userId, type } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required' });
+    }
+
+    let query = `
+      SELECT 
+        wt.*,
+        u.name as otherUserName,
+        CASE 
+          WHEN wt.type = 'transfer_in' THEN 'received'
+          WHEN wt.type = 'transfer_out' THEN 'sent'
+        END as transferDirection
+      FROM wallet_transactions wt
+      LEFT JOIN users u ON (
+        CASE 
+          WHEN wt.type = 'transfer_in' THEN wt.referenceId LIKE CONCAT('%', u.id, '%')
+          WHEN wt.type = 'transfer_out' THEN wt.referenceId LIKE CONCAT('%', u.id, '%')
+        END
+      )
+      WHERE wt.userId = ? AND wt.tenantId = ? AND wt.type IN ('transfer_in', 'transfer_out')
+    `;
+    
+    let params = [userId, req.tenant.id];
+
+    if (type && (type === 'sent' || type === 'received')) {
+      query += ' AND wt.type = ?';
+      params.push(type === 'sent' ? 'transfer_out' : 'transfer_in');
+    }
+
+    query += ' ORDER BY wt.createdAt DESC';
+
+    const [transfers] = await poolWrapper.execute(query, params);
+
+    res.json({ success: true, data: transfers });
+  } catch (error) {
+    console.error('❌ Error fetching transfers:', error);
+    res.status(500).json({ success: false, message: 'Error fetching transfers' });
+  }
+});
+
+// Search users for transfer
+app.get('/api/users/search', async (req, res) => {
+  try {
+    const { query, excludeUserId } = req.query;
+    
+    if (!query || query.length < 2) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Query must be at least 2 characters' 
+      });
+    }
+
+    let searchQuery = `
+      SELECT id, name, email, user_id
+      FROM users 
+      WHERE tenantId = ? AND (name LIKE ? OR email LIKE ? OR user_id LIKE ?)
+    `;
+    
+    let params = [req.tenant.id, `%${query}%`, `%${query}%`, `%${query}%`];
+
+    if (excludeUserId) {
+      searchQuery += ' AND id != ?';
+      params.push(excludeUserId);
+    }
+
+    searchQuery += ' ORDER BY name LIMIT 10';
+
+    const [users] = await poolWrapper.execute(searchQuery, params);
+
+    res.json({ success: true, data: users });
+  } catch (error) {
+    console.error('❌ Error searching users:', error);
+    res.status(500).json({ success: false, message: 'Error searching users' });
+  }
+});
+
 // Return Requests Endpoints
 
 // Get user's return requests
@@ -6667,6 +7031,59 @@ app.post('/api/referral/use', async (req, res) => {
   } catch (error) {
     console.error('Error using referral code:', error);
     res.status(500).json({ success: false, message: 'Error using referral code' });
+  }
+});
+
+// Generate referral code and link
+app.post('/api/referral/:userId/generate', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Check if user exists
+    const [userRows] = await poolWrapper.execute(
+      'SELECT id, referral_code FROM users WHERE id = ? AND tenantId = ?',
+      [userId, req.tenant.id]
+    );
+    
+    if (userRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    const user = userRows[0];
+    
+    // If user already has a referral code, return it
+    if (user.referral_code) {
+      const referralLink = `${process.env.FRONTEND_URL || 'https://hugluoutdoor.com'}/referral/${user.referral_code}`;
+      return res.json({
+        success: true,
+        data: {
+          code: user.referral_code,
+          url: referralLink
+        }
+      });
+    }
+    
+    // Generate new referral code
+    const referralCode = `REF${userId}${Date.now().toString().slice(-6)}`;
+    
+    // Update user with referral code
+    await poolWrapper.execute(
+      'UPDATE users SET referral_code = ? WHERE id = ? AND tenantId = ?',
+      [referralCode, userId, req.tenant.id]
+    );
+    
+    const referralLink = `${process.env.FRONTEND_URL || 'https://hugluoutdoor.com'}/referral/${referralCode}`;
+    
+    res.json({
+      success: true,
+      data: {
+        code: referralCode,
+        url: referralLink
+      }
+    });
+  } catch (error) {
+    console.error('Error generating referral code:', error);
+    res.status(500).json({ success: false, message: 'Error generating referral code' });
   }
 });
 

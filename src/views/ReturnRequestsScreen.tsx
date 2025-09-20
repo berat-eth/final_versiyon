@@ -21,6 +21,8 @@ import { ModernButton } from '../components/ui/ModernButton';
 import { LoadingIndicator } from '../components/LoadingIndicator';
 import { ReturnController, ReturnRequest, ReturnableOrder } from '../controllers/ReturnController';
 import { UserController } from '../controllers/UserController';
+import { OrderController } from '../controllers/OrderController';
+import { Order, OrderStatus } from '../utils/types';
 
 interface ReturnRequestsScreenProps {
   navigation: any;
@@ -29,6 +31,7 @@ interface ReturnRequestsScreenProps {
 export const ReturnRequestsScreen: React.FC<ReturnRequestsScreenProps> = ({ navigation }) => {
   const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
   const [returnableOrders, setReturnableOrders] = useState<ReturnableOrder[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showNewRequestModal, setShowNewRequestModal] = useState(false);
@@ -36,20 +39,27 @@ export const ReturnRequestsScreen: React.FC<ReturnRequestsScreenProps> = ({ navi
   const [selectedOrderItem, setSelectedOrderItem] = useState<any>(null);
   const [selectedReason, setSelectedReason] = useState('');
   const [description, setDescription] = useState('');
+  const [activeTab, setActiveTab] = useState<'returns' | 'orders'>('returns');
 
   const returnReasons = ReturnController.getReturnReasons();
 
   useEffect(() => {
-    loadReturnRequests();
+    loadData();
     const unsubscribe = navigation.addListener('focus', () => {
-      loadReturnRequests();
+      loadData();
     });
     return unsubscribe;
   }, [navigation]);
 
+  const loadData = useCallback(async () => {
+    await Promise.all([
+      loadReturnRequests(),
+      loadAllOrders()
+    ]);
+  }, []);
+
   const loadReturnRequests = useCallback(async () => {
     try {
-      setLoading(true);
       const userId = await UserController.getCurrentUserId();
       const requests = await ReturnController.getUserReturnRequests(userId);
       console.log('🔄 Return requests loaded:', { count: requests.length, requests });
@@ -57,6 +67,18 @@ export const ReturnRequestsScreen: React.FC<ReturnRequestsScreenProps> = ({ navi
     } catch (error) {
       console.error('Error loading return requests:', error);
       Alert.alert('Hata', 'İade talepleri yüklenirken bir hata oluştu.');
+    }
+  }, []);
+
+  const loadAllOrders = useCallback(async () => {
+    try {
+      const userId = await UserController.getCurrentUserId();
+      const orders = await OrderController.getUserOrders(userId);
+      console.log('📦 All orders loaded:', { count: orders.length, orders });
+      setAllOrders(orders);
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      Alert.alert('Hata', 'Siparişler yüklenirken bir hata oluştu.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -77,11 +99,79 @@ export const ReturnRequestsScreen: React.FC<ReturnRequestsScreenProps> = ({ navi
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    loadReturnRequests();
-  }, [loadReturnRequests]);
+    loadData();
+  }, [loadData]);
 
   const getStatusColor = (status: string) => ReturnController.getStatusColor(status);
   const getStatusText = (status: string) => ReturnController.getStatusText(status);
+
+  const getOrderStatusColor = (status: OrderStatus) => {
+    switch (status) {
+      case OrderStatus.PENDING:
+        return '#3b82f6'; // Mavi
+      case OrderStatus.PROCESSING:
+        return '#f59e0b'; // Turuncu
+      case OrderStatus.SHIPPED:
+        return '#8b5cf6'; // Mor
+      case OrderStatus.DELIVERED:
+        return '#10b981'; // Yeşil
+      case OrderStatus.CANCELLED:
+        return '#ef4444'; // Kırmızı
+      default:
+        return '#6b7280'; // Gri
+    }
+  };
+
+  const getOrderStatusText = (status: OrderStatus) => {
+    switch (status) {
+      case OrderStatus.PENDING:
+        return 'Beklemede';
+      case OrderStatus.PROCESSING:
+        return 'İşleniyor';
+      case OrderStatus.SHIPPED:
+        return 'Kargoya Verildi';
+      case OrderStatus.DELIVERED:
+        return 'Teslim Edildi';
+      case OrderStatus.CANCELLED:
+        return 'İptal Edildi';
+      default:
+        return 'Bilinmiyor';
+    }
+  };
+
+  const canCancelOrder = (order: Order) => {
+    return order.status === OrderStatus.PENDING || 
+           order.status === OrderStatus.PROCESSING ||
+           order.status === OrderStatus.SHIPPED;
+  };
+
+  const handleCancelOrder = useCallback(async (order: Order) => {
+    Alert.alert(
+      'Siparişi İptal Et',
+      `#${order.id} numaralı siparişi iptal etmek istediğinizden emin misiniz?`,
+      [
+        { text: 'Hayır', style: 'cancel' },
+        {
+          text: 'Evet, İptal Et',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await OrderController.cancelOrder(order.id);
+              if (result.success) {
+                Alert.alert('Başarılı', result.message);
+                loadData(); // Verileri yenile
+              } else {
+                Alert.alert('Hata', result.message);
+              }
+            } catch (error) {
+              console.error('Error cancelling order:', error);
+              Alert.alert('Hata', 'Sipariş iptal edilirken bir hata oluştu.');
+            }
+          }
+        }
+      ]
+    );
+  }, [loadData]);
 
   const handleNewRequest = useCallback(async () => {
     if (!selectedReason || !selectedOrderItem) {
@@ -149,6 +239,91 @@ export const ReturnRequestsScreen: React.FC<ReturnRequestsScreenProps> = ({ navi
     loadReturnableOrders();
     setShowOrderSelectionModal(true);
   }, [loadReturnableOrders]);
+
+  const renderOrderItem = ({ item }: { item: Order }) => (
+    <ModernCard style={styles.orderCard}>
+      <View style={styles.orderHeader}>
+        <View style={styles.orderInfo}>
+          <Text style={styles.orderId}>Sipariş #{item.id}</Text>
+          <Text style={styles.orderDate}>
+            {new Date(item.createdAt).toLocaleDateString('tr-TR', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: getOrderStatusColor(item.status) }]}>
+          <Text style={styles.statusText}>{getOrderStatusText(item.status)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.orderContent}>
+        <View style={styles.orderDetails}>
+          <Text style={styles.orderTotal}>Toplam: ₺{item.totalAmount.toFixed(2)}</Text>
+          <Text style={styles.orderItems}>{item.items.length} ürün</Text>
+        </View>
+
+        {item.items.slice(0, 2).map((orderItem, index) => (
+          <View key={index} style={styles.orderItem}>
+            <Image
+              source={{ uri: orderItem.productImage || 'https://via.placeholder.com/50' }}
+              style={styles.orderItemImage}
+            />
+            <View style={styles.orderItemInfo}>
+              <Text style={styles.orderItemName} numberOfLines={2}>
+                {orderItem.productName}
+              </Text>
+              <Text style={styles.orderItemQuantity}>
+                Adet: {orderItem.quantity} × ₺{orderItem.price.toFixed(2)}
+              </Text>
+            </View>
+          </View>
+        ))}
+
+        {item.items.length > 2 && (
+          <Text style={styles.moreItemsText}>
+            +{item.items.length - 2} ürün daha
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.orderActions}>
+        <TouchableOpacity
+          style={styles.detailButton}
+          onPress={() => navigation.navigate('OrderDetail', { orderId: item.id })}
+        >
+          <Icon name="visibility" size={16} color={Colors.primary} />
+          <Text style={styles.detailButtonText}>Detayları Gör</Text>
+        </TouchableOpacity>
+
+        {canCancelOrder(item) && (
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => handleCancelOrder(item)}
+          >
+            <Icon name="cancel" size={16} color="#ef4444" />
+            <Text style={styles.cancelButtonText}>İptal Et</Text>
+          </TouchableOpacity>
+        )}
+
+        {item.status === OrderStatus.DELIVERED && (
+          <TouchableOpacity
+            style={styles.returnButton}
+            onPress={() => {
+              setActiveTab('returns');
+              handleStartNewRequest();
+            }}
+          >
+            <Icon name="assignment-return" size={16} color={Colors.secondary} />
+            <Text style={styles.returnButtonText}>İade Talebi</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </ModernCard>
+  );
 
   const renderReturnRequest = ({ item }: { item: ReturnRequest }) => (
     <ModernCard style={styles.requestCard}>
@@ -294,7 +469,7 @@ export const ReturnRequestsScreen: React.FC<ReturnRequestsScreenProps> = ({ navi
         >
           <Icon name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>İade Taleplerim</Text>
+        <Text style={styles.headerTitle}>İptal ve İade Taleplerim</Text>
         <TouchableOpacity
           onPress={handleStartNewRequest}
           style={styles.addButton}
@@ -303,35 +478,86 @@ export const ReturnRequestsScreen: React.FC<ReturnRequestsScreenProps> = ({ navi
         </TouchableOpacity>
       </View>
 
-      {returnRequests.length > 0 ? (
-        <FlatList
-          data={returnRequests}
-          renderItem={renderReturnRequest}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={[Colors.primary]}
-              tintColor={Colors.primary}
-            />
-          }
-        />
-      ) : (
-        <View style={styles.emptyState}>
-          <Icon name="assignment-return" size={64} color={Colors.textMuted} />
-          <Text style={styles.emptyStateTitle}>İade Talebiniz Yok</Text>
-          <Text style={styles.emptyStateDescription}>
-            Henüz hiç iade talebiniz bulunmuyor. Bir ürünü iade etmek istiyorsanız yeni talep oluşturabilirsiniz.
+      {/* Tab Navigation */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'returns' && styles.activeTab]}
+          onPress={() => setActiveTab('returns')}
+        >
+          <Icon name="assignment-return" size={20} color={activeTab === 'returns' ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.tabText, activeTab === 'returns' && styles.activeTabText]}>
+            İade Talepleri ({returnRequests.length})
           </Text>
-          <ModernButton
-            title="Yeni İade Talebi"
-            onPress={handleStartNewRequest}
-            style={{ marginTop: Spacing.lg }}
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'orders' && styles.activeTab]}
+          onPress={() => setActiveTab('orders')}
+        >
+          <Icon name="shopping-cart" size={20} color={activeTab === 'orders' ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.tabText, activeTab === 'orders' && styles.activeTabText]}>
+            Siparişlerim ({allOrders.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === 'returns' ? (
+        returnRequests.length > 0 ? (
+          <FlatList
+            data={returnRequests}
+            renderItem={renderReturnRequest}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[Colors.primary]}
+                tintColor={Colors.primary}
+              />
+            }
           />
-        </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <Icon name="assignment-return" size={64} color={Colors.textMuted} />
+            <Text style={styles.emptyStateTitle}>İade Talebiniz Yok</Text>
+            <Text style={styles.emptyStateDescription}>
+              Henüz hiç iade talebiniz bulunmuyor. Bir ürünü iade etmek istiyorsanız yeni talep oluşturabilirsiniz.
+            </Text>
+            <ModernButton
+              title="Yeni İade Talebi"
+              onPress={handleStartNewRequest}
+              style={{ marginTop: Spacing.lg }}
+            />
+          </View>
+        )
+      ) : (
+        allOrders.length > 0 ? (
+          <FlatList
+            data={allOrders}
+            renderItem={renderOrderItem}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[Colors.primary]}
+                tintColor={Colors.primary}
+              />
+            }
+          />
+        ) : (
+          <View style={styles.emptyState}>
+            <Icon name="shopping-cart" size={64} color={Colors.textMuted} />
+            <Text style={styles.emptyStateTitle}>Siparişiniz Yok</Text>
+            <Text style={styles.emptyStateDescription}>
+              Henüz hiç siparişiniz bulunmuyor. Ürün satın alarak sipariş oluşturabilirsiniz.
+            </Text>
+          </View>
+        )
       )}
 
       {renderNewRequestModal()}
@@ -446,6 +672,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    padding: 4,
+    ...Shadows.small,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  activeTab: {
+    backgroundColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textMuted,
+  },
+  activeTabText: {
+    color: 'white',
   },
   header: {
     flexDirection: 'row',
@@ -786,5 +1042,88 @@ const styles = StyleSheet.create({
   selectedProductPrice: {
     fontSize: 14,
     color: Colors.textLight,
+  },
+  orderCard: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Shadows.medium,
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  orderInfo: {
+    flex: 1,
+  },
+  orderId: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  orderDate: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  orderContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  orderDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  orderTotal: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  orderItems: {
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+  orderItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  orderItemImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: Spacing.md,
+  },
+  orderItemInfo: {
+    flex: 1,
+  },
+  orderItemName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  orderItemQuantity: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  moreItemsText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: Spacing.sm,
+  },
+  orderActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+    gap: Spacing.sm,
   },
 });

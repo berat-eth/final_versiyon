@@ -375,9 +375,9 @@ export const SupportScreen: React.FC<SupportScreenProps> = ({ navigation }) => {
             >
               <Icon name="assignment-return" size={24} color={Colors.secondary} />
               <View style={styles.helpInfo}>
-                <Text style={styles.helpTitle}>İade Taleplerim</Text>
+                <Text style={styles.helpTitle}>İptal ve İade Taleplerim</Text>
                 <Text style={styles.helpDescription}>
-                  İade taleplerinizi yönetin
+                  İptal ve iade taleplerinizi yönetin
                 </Text>
               </View>
               <Icon name="chevron-right" size={20} color={Colors.textLight} />

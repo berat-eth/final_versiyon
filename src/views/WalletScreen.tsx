@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Modal,
   TextInput,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -19,6 +20,9 @@ import { ProductController } from '../controllers/ProductController';
 import { WalletController } from '../controllers/WalletController';
 import { UserController } from '../controllers/UserController';
 import { apiService } from '../utils/api-service';
+import { TransferService, User, TransferHistory } from '../services/TransferService';
+import { Colors } from '../theme/colors';
+import { Spacing, Shadows } from '../theme/theme';
 
 interface WalletScreenProps {
   navigation: any;
@@ -26,13 +30,15 @@ interface WalletScreenProps {
 
 interface Transaction {
   id: number;
-  type: 'credit' | 'debit';
+  type: 'credit' | 'debit' | 'transfer_in' | 'transfer_out';
   amount: number;
   description: string;
   date: string;
   status: 'completed' | 'pending' | 'failed';
   referenceId?: string;
   balance?: number;
+  otherUserName?: string;
+  transferDirection?: 'sent' | 'received';
 }
 
 export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
@@ -55,6 +61,17 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
   const [rechargeAmount, setRechargeAmount] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'bank_transfer' | null>(null);
   const [rechargeLoading, setRechargeLoading] = useState(false);
+
+  // Transfer modal state'leri
+  const [transferModalVisible, setTransferModalVisible] = useState(false);
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferDescription, setTransferDescription] = useState('');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'transfers'>('all');
 
   useEffect(() => {
     loadWalletData();
@@ -105,14 +122,130 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadWalletData();
     setRefreshing(false);
-  };
+  }, []);
+
+  // User search with debounce
+  const searchUsers = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      const users = await TransferService.searchUsers(query, userId);
+      setSearchResults(users);
+    } catch (error) {
+      console.error('Error searching users:', error);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [userId]);
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchUsers(userSearchQuery);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [userSearchQuery, searchUsers]);
+
+  const handleTransfer = useCallback(async () => {
+    if (!selectedUser || !transferAmount || parseFloat(transferAmount) <= 0) {
+      Alert.alert('Uyarı', 'Lütfen geçerli bir kullanıcı ve miktar seçin');
+      return;
+    }
+
+    if (parseFloat(transferAmount) > balance) {
+      Alert.alert('Uyarı', 'Yetersiz bakiye');
+      return;
+    }
+
+    try {
+      setTransferLoading(true);
+      const result = await TransferService.transferMoney({
+        fromUserId: userId,
+        toUserId: selectedUser.id,
+        amount: parseFloat(transferAmount),
+        description: transferDescription
+      });
+
+      if (result.success) {
+        Alert.alert('Başarılı', result.message);
+        setTransferModalVisible(false);
+        setSelectedUser(null);
+        setTransferAmount('');
+        setTransferDescription('');
+        setUserSearchQuery('');
+        loadWalletData();
+      } else {
+        Alert.alert('Hata', result.message);
+      }
+    } catch (error) {
+      console.error('Error transferring money:', error);
+      Alert.alert('Hata', 'Transfer işlemi sırasında bir hata oluştu');
+    } finally {
+      setTransferLoading(false);
+    }
+  }, [selectedUser, transferAmount, transferDescription, balance, userId, loadWalletData]);
 
   const handleAddMoney = () => {
     setRechargeModalVisible(true);
+  };
+
+  const handleTransferMoney = () => {
+    setTransferModalVisible(true);
+  };
+
+  const filteredTransactions = activeTab === 'transfers' 
+    ? transactions.filter(tx => tx.type === 'transfer_in' || tx.type === 'transfer_out')
+    : transactions;
+
+  const getTransactionColor = (type: string) => {
+    switch (type) {
+      case 'transfer_in':
+        return '#10b981'; // Yeşil - gelen
+      case 'transfer_out':
+        return '#ef4444'; // Kırmızı - giden
+      case 'credit':
+        return '#3b82f6'; // Mavi - yatırım
+      case 'debit':
+        return '#f59e0b'; // Turuncu - çekim
+      default:
+        return '#6b7280'; // Gri
+    }
+  };
+
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'transfer_in':
+        return 'arrow-downward';
+      case 'transfer_out':
+        return 'arrow-upward';
+      case 'credit':
+        return 'add';
+      case 'debit':
+        return 'remove';
+      default:
+        return 'payment';
+    }
+  };
+
+  const getTransactionDescription = (transaction: Transaction) => {
+    if (transaction.type === 'transfer_in' || transaction.type === 'transfer_out') {
+      return transaction.otherUserName 
+        ? transaction.type === 'transfer_in' 
+          ? `${transaction.otherUserName} tarafından gönderildi`
+          : `${transaction.otherUserName} kullanıcısına gönderildi`
+        : transaction.description;
+    }
+    return transaction.description;
   };
 
 
@@ -192,13 +325,6 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
   };
 
 
-  const getTransactionIcon = (type: 'credit' | 'debit') => {
-    return type === 'credit' ? '➕' : '➖';
-  };
-
-  const getTransactionColor = (type: 'credit' | 'debit') => {
-    return type === 'credit' ? '#4CAF50' : '#F44336';
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -296,6 +422,10 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
               <Icon name="add" size={20} color="white" />
               <Text style={styles.modernActionButtonText}>Para Yükle</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.modernActionButton} onPress={handleTransferMoney}>
+              <Icon name="send" size={20} color="white" />
+              <Text style={styles.modernActionButtonText}>Transfer Et</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.modernActionButton} onPress={() => setRefundModalVisible(true)}>
               <Icon name="undo" size={20} color="white" />
               <Text style={styles.modernActionButtonText}>Bakiye İadesi</Text>
@@ -332,29 +462,57 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Tab Navigation */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'all' && styles.activeTab]}
+            onPress={() => setActiveTab('all')}
+          >
+            <Icon name="list" size={20} color={activeTab === 'all' ? Colors.primary : Colors.textMuted} />
+            <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>
+              Tümü ({transactions.length})
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'transfers' && styles.activeTab]}
+            onPress={() => setActiveTab('transfers')}
+          >
+            <Icon name="swap-horiz" size={20} color={activeTab === 'transfers' ? Colors.primary : Colors.textMuted} />
+            <Text style={[styles.tabText, activeTab === 'transfers' && styles.activeTabText]}>
+              Transferler ({transactions.filter(tx => tx.type === 'transfer_in' || tx.type === 'transfer_out').length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Transaction History */}
         <View style={styles.transactionsContainer}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>İşlem Geçmişi</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>Tümünü Gör</Text>
-            </TouchableOpacity>
           </View>
 
-          {transactions.map((transaction) => (
+          {filteredTransactions.map((transaction) => (
             <View key={transaction.id} style={styles.transactionCard}>
               <View style={styles.transactionHeader}>
-                <View style={styles.transactionIcon}>
-                  <Text style={styles.iconText}>
-                    {getTransactionIcon(transaction.type)}
-                  </Text>
+                <View style={[styles.transactionIcon, { backgroundColor: getTransactionColor(transaction.type) + '20' }]}>
+                  <Icon 
+                    name={getTransactionIcon(transaction.type)} 
+                    size={20} 
+                    color={getTransactionColor(transaction.type)} 
+                  />
                 </View>
                 <View style={styles.transactionInfo}>
                   <Text style={styles.transactionDescription}>
-                    {transaction.description}
+                    {getTransactionDescription(transaction)}
                   </Text>
                   <Text style={styles.transactionDate}>
-                    {new Date(transaction.date).toLocaleDateString('tr-TR')}
+                    {new Date(transaction.date).toLocaleDateString('tr-TR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
                   </Text>
                 </View>
                 <View style={styles.transactionAmount}>
@@ -362,9 +520,14 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
                     styles.amountText,
                     { color: getTransactionColor(transaction.type) }
                   ]}>
-                    {transaction.type === 'credit' ? '+' : '-'}
+                    {transaction.type === 'transfer_in' || transaction.type === 'credit' ? '+' : '-'}
                     {ProductController.formatPrice(transaction.amount)}
                   </Text>
+                  {transaction.balance && (
+                    <Text style={styles.balanceText}>
+                      Bakiye: {ProductController.formatPrice(transaction.balance)}
+                    </Text>
+                  )}
                   <Text style={[
                     styles.statusText,
                     { color: getStatusColor(transaction.status) }
@@ -499,6 +662,147 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Transfer Modal */}
+      <Modal
+        visible={transferModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setTransferModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setTransferModalVisible(false)}
+              style={styles.modalCloseButton}
+            >
+              <Icon name="close" size={24} color={Colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Para Transferi</Text>
+            <TouchableOpacity
+              onPress={handleTransfer}
+              style={[styles.modalSaveButton, (!selectedUser || !transferAmount || transferLoading) && styles.modalSaveButtonDisabled]}
+              disabled={!selectedUser || !transferAmount || transferLoading}
+            >
+              {transferLoading ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Text style={styles.modalSaveButtonText}>Gönder</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {/* User Search */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Kullanıcı Ara</Text>
+              <TextInput
+                style={styles.formInput}
+                value={userSearchQuery}
+                onChangeText={setUserSearchQuery}
+                placeholder="Ad, email veya kullanıcı ID ile ara"
+                placeholderTextColor={Colors.textMuted}
+              />
+              
+              {searchLoading && (
+                <View style={styles.searchLoading}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                  <Text style={styles.searchLoadingText}>Aranıyor...</Text>
+                </View>
+              )}
+
+              {searchResults.length > 0 && (
+                <View style={styles.searchResults}>
+                  {searchResults.map((user) => (
+                    <TouchableOpacity
+                      key={user.id}
+                      style={[
+                        styles.searchResultItem,
+                        selectedUser?.id === user.id && styles.searchResultItemSelected
+                      ]}
+                      onPress={() => {
+                        setSelectedUser(user);
+                        setUserSearchQuery(user.name);
+                        setSearchResults([]);
+                      }}
+                    >
+                      <View style={styles.searchResultInfo}>
+                        <Text style={styles.searchResultName}>{user.name}</Text>
+                        <Text style={styles.searchResultEmail}>{user.email}</Text>
+                        <Text style={styles.searchResultId}>ID: {user.user_id}</Text>
+                      </View>
+                      {selectedUser?.id === user.id && (
+                        <Icon name="check" size={20} color={Colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Selected User */}
+            {selectedUser && (
+              <View style={styles.selectedUserContainer}>
+                <Text style={styles.formLabel}>Seçilen Kullanıcı</Text>
+                <View style={styles.selectedUserCard}>
+                  <View style={styles.selectedUserInfo}>
+                    <Text style={styles.selectedUserName}>{selectedUser.name}</Text>
+                    <Text style={styles.selectedUserEmail}>{selectedUser.email}</Text>
+                    <Text style={styles.selectedUserId}>ID: {selectedUser.user_id}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedUser(null);
+                      setUserSearchQuery('');
+                    }}
+                    style={styles.removeUserButton}
+                  >
+                    <Icon name="close" size={20} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Transfer Amount */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Transfer Miktarı</Text>
+              <TextInput
+                style={styles.formInput}
+                value={transferAmount}
+                onChangeText={setTransferAmount}
+                placeholder="0.00"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="numeric"
+              />
+              <Text style={styles.balanceInfo}>
+                Mevcut Bakiye: {ProductController.formatPrice(balance)}
+              </Text>
+            </View>
+
+            {/* Transfer Description */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Açıklama (İsteğe Bağlı)</Text>
+              <TextInput
+                style={[styles.formInput, styles.textArea]}
+                value={transferDescription}
+                onChangeText={setTransferDescription}
+                placeholder="Transfer açıklaması..."
+                placeholderTextColor={Colors.textMuted}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            {/* Transfer Info */}
+            <View style={styles.transferInfo}>
+              <Icon name="info" size={20} color={Colors.primary} />
+              <Text style={styles.transferInfoText}>
+                Transfer işlemi geri alınamaz. Lütfen bilgileri kontrol edin.
+              </Text>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
       
       {/* Refund Request Modal */}
@@ -1051,5 +1355,216 @@ const styles = StyleSheet.create({
     color: '#047857',
     marginBottom: 4,
     lineHeight: 20,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    padding: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  activeTab: {
+    backgroundColor: '#3b82f6',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  activeTabText: {
+    color: 'white',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  modalCloseButton: {
+    padding: 8,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  modalSaveButton: {
+    padding: 8,
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+  },
+  modalSaveButtonDisabled: {
+    backgroundColor: '#6b7280',
+  },
+  modalSaveButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  formInput: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#1f2937',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  searchLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  searchLoadingText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  searchResults: {
+    marginTop: 8,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    maxHeight: 200,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  searchResultItemSelected: {
+    backgroundColor: '#3b82f610',
+  },
+  searchResultInfo: {
+    flex: 1,
+  },
+  searchResultName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  searchResultEmail: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  searchResultId: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  selectedUserContainer: {
+    marginBottom: 20,
+  },
+  selectedUserCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#3b82f610',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3b82f630',
+  },
+  selectedUserInfo: {
+    flex: 1,
+  },
+  selectedUserName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  selectedUserEmail: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  selectedUserId: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  removeUserButton: {
+    padding: 8,
+  },
+  balanceInfo: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 8,
+  },
+  transferInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#3b82f610',
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  transferInfoText: {
+    fontSize: 12,
+    color: '#1f2937',
+    flex: 1,
+  },
+  balanceText: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginTop: 2,
   },
 });
