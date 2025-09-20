@@ -2,10 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Text, ActivityIndicator, View, Image, TouchableOpacity, Modal, Pressable, StyleSheet, Animated } from 'react-native';
+import { Text, ActivityIndicator, View, Image, TouchableOpacity, StyleSheet, Animated, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { SearchBar } from '../components/SearchBar';
 
 // Screens
 import { HomeScreen } from '../views/HomeScreen';
@@ -97,137 +96,23 @@ const TabIcons = {
 
 // Custom Header Component
 const CustomHeader = ({ navigation, categories }: { navigation: any; categories: string[] }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchVisible, setIsSearchVisible] = useState(false);
-
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      navigation.navigate('ProductList', { searchQuery: searchQuery.trim() });
-      setSearchQuery('');
-      setIsSearchVisible(false);
-    }
-  };
-
   return (
-    <>
-      <View style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: '#FFFFFF',
-      }}>
-        <HamburgerMenu navigation={navigation} categories={categories} />
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Image 
-            source={require('../../assets/logo.jpg')} 
-            style={{ width: 160, height: 80 }}
-            resizeMode="contain"
-          />
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity 
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: '#F8F9FA',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: '#E9ECEF',
-              marginRight: 8,
-            }}
-            onPress={() => setIsSearchVisible(true)}
-          >
-            <Image 
-              source={require('../../assets/search-interface-symbol.png')} 
-              style={{ width: 20, height: 20, tintColor: '#6C757D' }}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-          
-        </View>
+    <View style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      backgroundColor: '#FFFFFF',
+    }}>
+      <HamburgerMenu navigation={navigation} categories={categories} />
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <Image 
+          source={require('../../assets/logo.jpg')} 
+          style={{ width: 160, height: 80 }}
+          resizeMode="contain"
+        />
       </View>
-
-      {/* Search Popup Modal */}
-      <Modal
-        visible={isSearchVisible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setIsSearchVisible(false)}
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-          onPress={() => setIsSearchVisible(false)}
-        >
-          <Pressable
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 16,
-              padding: 20,
-              width: '90%',
-              maxWidth: 400,
-            }}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              marginBottom: 16,
-            }}>
-              <Text style={{
-                fontSize: 18,
-                fontWeight: '700',
-                color: '#1A1A2E',
-                flex: 1,
-              }}>
-                Ürün Ara
-              </Text>
-              <TouchableOpacity
-                onPress={() => setIsSearchVisible(false)}
-                style={{
-                  padding: 4,
-                }}
-              >
-                <Text style={{ fontSize: 20, color: '#666666' }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <SearchBar
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onSubmit={handleSearch}
-              placeholder="Ürün adı, kategori veya marka..."
-            />
-            
-            <TouchableOpacity
-              style={{
-                backgroundColor: '#1A1A2E',
-                paddingVertical: 12,
-                borderRadius: 8,
-                alignItems: 'center',
-                marginTop: 16,
-              }}
-              onPress={handleSearch}
-            >
-              <Text style={{
-                color: '#FFFFFF',
-                fontSize: 16,
-                fontWeight: '600',
-              }}>
-                Ara
-              </Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </>
+    </View>
   );
 };
 

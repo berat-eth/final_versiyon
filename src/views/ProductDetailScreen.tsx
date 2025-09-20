@@ -159,7 +159,13 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
     if (!product) return;
 
     if (product.hasVariations && !isAllVariationsSelected()) {
-      Alert.alert('Uyarı', 'Lütfen tüm varyasyon seçeneklerini belirleyin.');
+      Alert.alert(
+        'Beden Seçimi Gerekli', 
+        'Bu ürünü sepete eklemek için önce beden seçimi yapmanız gerekiyor. Lütfen istediğiniz bedeni seçin.',
+        [
+          { text: 'Tamam', style: 'default' }
+        ]
+      );
       return;
     }
 
@@ -376,12 +382,15 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
 
           {product.hasVariations && (
             <View style={styles.variationInfo}>
-              <Text style={styles.variationLabel}>Mevcut Bedenler:</Text>
-              <View style={styles.availableSizes}>
+              <Text style={styles.variationLabel}>Mevcut Bedenler ve Stok:</Text>
+              <View style={styles.sizeStockGrid}>
                 {product.variations?.map((variation, index) => (
-                  <View key={index} style={styles.sizeChip}>
+                  <View key={index} style={styles.sizeStockItem}>
                     <Text style={styles.sizeText}>
                       {variation.options?.[0]?.value || 'N/A'}
+                    </Text>
+                    <Text style={styles.stockText}>
+                      {variation.options?.[0]?.stock || 0} adet
                     </Text>
                   </View>
                 ))}
@@ -412,6 +421,17 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
               <Text style={styles.variationSubtitle}>
                 Lütfen istediğiniz varyasyonları seçin
               </Text>
+              
+              {/* Beden Seçimi Zorunluluğu Uyarısı */}
+              {!isAllVariationsSelected() && (
+                <View style={styles.variationWarning}>
+                  <Icon name="warning" size={20} color="#FF6B35" />
+                  <Text style={styles.variationWarningText}>
+                    Sepete eklemek için beden seçimi yapmanız gerekiyor!
+                  </Text>
+                </View>
+              )}
+              
               <VariationSelector
                 variations={product.variations}
                 selectedOptions={selectedOptions}
@@ -519,7 +539,7 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
           >
             <Text style={styles.addToCartText}>
               {addingToCart ? 'Ekleniyor...' : 
-               product.hasVariations && !isAllVariationsSelected() ? 'Varyasyon Seçin' : 'Sepete Ekle'}
+               product.hasVariations && !isAllVariationsSelected() ? 'Beden Seçin' : 'Sepete Ekle'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -759,6 +779,7 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+    backgroundColor: '#CCCCCC',
   },
   addToCartText: {
     fontSize: 16,
@@ -815,6 +836,22 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
+  sizeStockGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  sizeStockItem: {
+    backgroundColor: '#F8F9FA',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    alignItems: 'center',
+    minWidth: 60,
+  },
   sizeChip: {
     backgroundColor: '#F0F0F0',
     paddingHorizontal: 12,
@@ -827,5 +864,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333333',
     fontWeight: '500',
+    marginBottom: 2,
+  },
+  variationWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFB74D',
+    marginBottom: 12,
+  },
+  variationWarningText: {
+    fontSize: 14,
+    color: '#E65100',
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
   },
 });

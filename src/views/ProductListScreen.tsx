@@ -33,6 +33,7 @@ import { ProductListHeader } from '../components/ProductListHeader';
 import { CategoriesSection } from '../components/CategoriesSection';
 import { ProductListControls } from '../components/ProductListControls';
 import { FlashDealsHeader } from '../components/FlashDealsHeader';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 
 interface ProductListScreenProps {
   navigation: any;
@@ -69,6 +70,8 @@ export const ProductListScreen: React.FC<ProductListScreenProps> = ({ navigation
   const [hasMore, setHasMore] = useState(true);
   const [totalProducts, setTotalProducts] = useState(0);
   const ITEMS_PER_PAGE = 20;
+  // Barcode scanner state
+  const [barcodeScannerVisible, setBarcodeScannerVisible] = useState(false);
 
   const searchInputRef = useRef<TextInput>(null);
 
@@ -229,6 +232,50 @@ export const ProductListScreen: React.FC<ProductListScreenProps> = ({ navigation
   const loadMore = async () => {
     // Artık tüm ürünler tek seferde yükleniyor, loadMore gerekli değil
     return;
+  };
+
+  const handleBarcodeScanned = async (barcode: string) => {
+    try {
+      console.log('Barkod okundu:', barcode);
+      
+      // Barkod ile ürün ara
+      const searchResult = await ProductController.searchProducts(barcode);
+      
+      if (searchResult.products && searchResult.products.length > 0) {
+        // Ürün bulundu, arama sonuçlarını göster
+        setSearchQuery(barcode);
+        setProducts(searchResult.products);
+        setFilteredProducts(searchResult.products);
+        setCurrentPageNum(1);
+        setHasMore(false);
+        
+        Alert.alert(
+          'Ürün Bulundu!',
+          `${searchResult.products.length} ürün bulundu.`,
+          [{ text: 'Tamam' }]
+        );
+      } else {
+        // Ürün bulunamadı
+        Alert.alert(
+          'Ürün Bulunamadı',
+          'Bu barkod ile eşleşen ürün bulunamadı. Lütfen farklı bir barkod deneyin.',
+          [
+            { text: 'Tamam' },
+            { 
+              text: 'Tekrar Tara', 
+              onPress: () => setBarcodeScannerVisible(true) 
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Barkod arama hatası:', error);
+      Alert.alert(
+        'Hata',
+        'Barkod aranırken bir hata oluştu. Lütfen tekrar deneyin.',
+        [{ text: 'Tamam' }]
+      );
+    }
   };
 
   const applyFiltersAndSort = useCallback(() => {

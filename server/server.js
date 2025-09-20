@@ -3156,18 +3156,20 @@ app.get('/api/products/search', async (req, res) => {
     // Not: Diğer uç noktalarda kullanılan tenant ara katmanı burada yoksa, tüm ürünlerde arama yapılır
     const tenantId = req.tenant?.id;
 
-    // İsim/açıklama/marka + stok kodu (externalId) + varyasyon SKU alanlarında arama
+    // İsim/açıklama/marka + stok kodu (externalId) + ürün SKU + varyasyon SKU alanlarında arama
     // Varyasyon eşleşmesini getirmek için ürün tablosuna JOIN ile eşleştirip DISTINCT seçiyoruz
     const params = tenantId
       ? [
           `%${search}%`, `%${search}%`, `%${search}%`, // name/description/brand
           `%${search}%`, // externalId
+          `%${search}%`, // product sku
           `%${search}%`, // option sku
           tenantId,
         ]
       : [
           `%${search}%`, `%${search}%`, `%${search}%`, // name/description/brand
           `%${search}%`, // externalId
+          `%${search}%`, // product sku
           `%${search}%`, // option sku
         ];
 
@@ -3176,13 +3178,14 @@ app.get('/api/products/search', async (req, res) => {
     const [rows] = await poolWrapper.execute(
       `SELECT DISTINCT p.*
        FROM products p
-       LEFT JOIN product_variations v ON v.product_id = p.id
-       LEFT JOIN product_variation_options o ON o.variation_id = v.id
+       LEFT JOIN product_variations v ON v.productId = p.id
+       LEFT JOIN product_variation_options o ON o.variationId = v.id
        WHERE (
          p.name LIKE ?
          OR p.description LIKE ?
          OR p.brand LIKE ?
          OR p.externalId LIKE ?
+         OR p.sku LIKE ?
          OR o.sku LIKE ?
        )${whereTenant}
        ORDER BY p.lastUpdated DESC

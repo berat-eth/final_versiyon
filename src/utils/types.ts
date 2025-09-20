@@ -39,6 +39,7 @@ export interface Product {
   lastUpdated?: string; // API'den gelen son güncelleme tarihi
   externalId?: string; // Dış sistem ID'si
   source?: string; // Veri kaynağı
+  sku?: string; // Stok kodu
   discountAmount?: number; // İndirim miktarı
   originalPrice?: number; // Orijinal fiyat
   finalPrice?: number; // İndirimli fiyat

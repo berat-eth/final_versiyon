@@ -177,6 +177,7 @@ export class XmlProductService {
         const option: ProductVariationOption = {
           id: parseInt(secenek.VaryasyonID),
           variationId: 0, // Will be set later
+          name: variationName,
           value: variationValue,
           priceModifier: finalPrice,
           stock: parseInt(secenek.StokAdedi) || 0,
@@ -251,6 +252,7 @@ export class XmlProductService {
       reviewCount: 0, // XML'de review bilgisi yok
       variations,
       hasVariations: variations.length > 0,
+      sku: xmlProduct.UrunSecenek?.Secenek?.[0]?.StokKodu || '',
       source: 'XML'
     };
   }

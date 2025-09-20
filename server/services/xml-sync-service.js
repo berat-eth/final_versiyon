@@ -218,7 +218,8 @@ class XmlSyncService {
         productUrl: item.UrunUrl || '',
         salesUnit: item.SatisBirimi || 'ADET',
         totalImages: images.length, // Toplam görsel sayısı
-        hasVariations: variations.length > 0
+        hasVariations: variations.length > 0,
+        sku: variations.length > 0 ? variations[0].StokKodu : '' // İlk varyasyonun stok kodu
       };
 
       // Gerekli alanları kontrol et
@@ -369,6 +370,10 @@ class XmlSyncService {
           updates.push('hasVariations = ?');
           hasChanges = true;
         }
+        if (existingProduct.sku !== product.sku) {
+          updates.push('sku = ?');
+          hasChanges = true;
+        }
 
         if (hasChanges) {
           await this.pool.execute(
@@ -384,6 +389,7 @@ class XmlSyncService {
               ...(updates.includes('image4 = ?') ? [product.image4] : []),
               ...(updates.includes('image5 = ?') ? [product.image5] : []),
               ...(updates.includes('hasVariations = ?') ? [product.hasVariations] : []),
+              ...(updates.includes('sku = ?') ? [product.sku] : []),
               product.lastUpdated,
               existingProduct.id
             ]
@@ -395,8 +401,8 @@ class XmlSyncService {
       } else {
         // Yeni ürün ekle
         await this.pool.execute(
-          `INSERT INTO products (tenantId, name, description, price, category, image, images, image1, image2, image3, image4, image5, stock, brand, rating, reviewCount, externalId, source, hasVariations, lastUpdated) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO products (tenantId, name, description, price, category, image, images, image1, image2, image3, image4, image5, stock, brand, rating, reviewCount, externalId, source, hasVariations, sku, lastUpdated) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             tenantId,
             product.name,
@@ -417,6 +423,7 @@ class XmlSyncService {
             product.externalId,
             product.source,
             product.hasVariations,
+            product.sku,
             product.lastUpdated
           ]
         );

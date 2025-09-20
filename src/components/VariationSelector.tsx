@@ -90,6 +90,12 @@ export const VariationSelector: React.FC<VariationSelectorProps> = ({
                 ]}>
                   {option.value}
                 </Text>
+                <Text style={[
+                  styles.stockText,
+                  !isOptionAvailable(option) && styles.unavailableStockText,
+                ]}>
+                  {option.stock > 0 ? `${option.stock} adet` : 'Tükendi'}
+                </Text>
                 {option.priceModifier > 0 && (
                   <Text style={[
                     styles.priceModifier,
@@ -100,9 +106,6 @@ export const VariationSelector: React.FC<VariationSelectorProps> = ({
                 )}
                 {option.stock <= 5 && option.stock > 0 && (
                   <Text style={styles.lowStockBadge}>Son {option.stock}</Text>
-                )}
-                {option.stock === 0 && (
-                  <Text style={styles.outOfStockBadge}>Tükendi</Text>
                 )}
               </TouchableOpacity>
             ))}
@@ -226,5 +229,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#2E7D32',
+  },
+  stockText: {
+    fontSize: 11,
+    color: '#666666',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  unavailableStockText: {
+    color: '#F44336',
+    fontWeight: '500',
   },
 });

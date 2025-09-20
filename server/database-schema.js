@@ -184,6 +184,7 @@ async function createDatabaseSchema(pool) {
         externalId VARCHAR(255),
         source VARCHAR(100),
         hasVariations BOOLEAN DEFAULT false,
+        sku VARCHAR(100),
         lastUpdated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (tenantId) REFERENCES tenants(id) ON DELETE CASCADE,
         INDEX idx_tenant_product (tenantId),
@@ -193,6 +194,7 @@ async function createDatabaseSchema(pool) {
         INDEX idx_category_tenant (category, tenantId),
         INDEX idx_brand_tenant (brand, tenantId),
         INDEX idx_has_variations (hasVariations),
+        INDEX idx_sku_tenant (sku, tenantId),
         UNIQUE KEY unique_external_id_per_tenant (externalId, tenantId)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
@@ -233,6 +235,10 @@ async function createDatabaseSchema(pool) {
     if (!prodColNames.includes('image5')) {
       await pool.execute('ALTER TABLE products ADD COLUMN image5 VARCHAR(500) AFTER image4');
       console.log('✅ Added image5 to products');
+    }
+    if (!prodColNames.includes('sku')) {
+      await pool.execute('ALTER TABLE products ADD COLUMN sku VARCHAR(100) AFTER hasVariations');
+      console.log('✅ Added sku to products');
     }
 
     // Product Variations table
