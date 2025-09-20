@@ -241,17 +241,17 @@ export const ProductListScreen: React.FC<ProductListScreenProps> = ({ navigation
       // Barkod ile ürün ara
       const searchResult = await ProductController.searchProducts(barcode);
       
-      if (searchResult.products && searchResult.products.length > 0) {
+      if (searchResult && searchResult.length > 0) {
         // Ürün bulundu, arama sonuçlarını göster
         setSearchQuery(barcode);
-        setProducts(searchResult.products);
-        setFilteredProducts(searchResult.products);
+        setProducts(searchResult);
+        setFilteredProducts(searchResult);
         setCurrentPageNum(1);
         setHasMore(false);
         
         Alert.alert(
           'Ürün Bulundu!',
-          `${searchResult.products.length} ürün bulundu.`,
+          `${searchResult.length} ürün bulundu.`,
           [{ text: 'Tamam' }]
         );
       } else {
@@ -565,6 +565,7 @@ export const ProductListScreen: React.FC<ProductListScreenProps> = ({ navigation
         onSearchSubmit={handleSearchSubmit}
         onFilterPress={() => setFilterModalVisible(true)}
         hasActiveFilters={hasActiveFilters}
+        onBarcodePress={() => setBarcodeScannerVisible(true)}
       />
       
       <CategoriesSection
@@ -657,6 +658,12 @@ export const ProductListScreen: React.FC<ProductListScreenProps> = ({ navigation
           categories={categories}
         />
       )}
+
+      <BarcodeScanner
+        visible={barcodeScannerVisible}
+        onClose={() => setBarcodeScannerVisible(false)}
+        onBarcodeScanned={handleBarcodeScanned}
+      />
     </SafeAreaView>
   );
 };

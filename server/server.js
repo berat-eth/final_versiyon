@@ -246,7 +246,8 @@ app.use('/api', (req, res, next) => {
   const skipApiKeyPaths = [
     '/api/health',
     '/api/admin/login',
-    '/api/tenants' // Tenant creation doesn't require API key
+    '/api/tenants', // Tenant creation doesn't require API key
+    '/api/users' // User registration doesn't require API key
   ];
   
   if (skipApiKeyPaths.includes(req.path)) {
@@ -2167,13 +2168,34 @@ app.delete('/api/tenants/:id', async (req, res) => {
 // User endpoints (with tenant authentication)
 app.post('/api/users', async (req, res) => {
   try {
-    const { name, email, password, phone, birthDate, address, gender } = req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      phone, 
+      birthDate, 
+      address, 
+      gender,
+      privacyAccepted,
+      termsAccepted,
+      marketingEmail,
+      marketingSms,
+      marketingPhone
+    } = req.body;
     
     // Validate required fields
     if (!name || !email || !password || !phone || !birthDate) {
       return res.status(400).json({ 
         success: false, 
         message: 'Name, email, password, phone and birthDate are required' 
+      });
+    }
+    
+    // Validate privacy and terms acceptance
+    if (!privacyAccepted || !termsAccepted) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Privacy policy and terms must be accepted' 
       });
     }
     
@@ -2185,10 +2207,13 @@ app.post('/api/users', async (req, res) => {
       });
     }
     
+    // Use default tenant ID if not provided
+    const tenantId = req.tenant?.id || 1;
+    
     // Check if user already exists
     const [existingUser] = await poolWrapper.execute(
       'SELECT id FROM users WHERE email = ? AND tenantId = ?',
-      [email, req.tenant.id]
+      [email, tenantId]
     );
     
     if (existingUser.length > 0) {
@@ -2240,8 +2265,8 @@ app.post('/api/users', async (req, res) => {
     const plainEmail = email;
     
     const [result] = await poolWrapper.execute(
-      'INSERT INTO users (user_id, tenantId, name, email, password, phone, gender, birth_date, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [userId, req.tenant.id, name, plainEmail, hashedPassword, plainPhone, (gender || null), validBirthDate, plainAddress]
+      'INSERT INTO users (user_id, tenantId, name, email, password, phone, gender, birthDate, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [userId, tenantId, name, plainEmail, hashedPassword, plainPhone, (gender || null), validBirthDate, plainAddress]
     );
     
     res.json({ 
@@ -2254,7 +2279,18 @@ app.post('/api/users', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error creating user:', error);
-    res.status(500).json({ success: false, message: 'Error creating user' });
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error creating user',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 });
 
@@ -2262,16 +2298,19 @@ app.get('/api/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Try with birth_date first, fallback to without it
+    // Use default tenant ID if not provided
+    const tenantId = req.tenant?.id || 1;
+    
+    // Try with birthDate first, fallback to without it
     let [rows] = await poolWrapper.execute(
-      'SELECT id, name, email, phone, birth_date AS birthDate, address, createdAt FROM users WHERE id = ? AND tenantId = ?',
-      [id, req.tenant.id]
+      'SELECT id, name, email, phone, birthDate, address, createdAt FROM users WHERE id = ? AND tenantId = ?',
+      [id, tenantId]
     ).catch(async (error) => {
       if (error.code === 'ER_BAD_FIELD_ERROR') {
-        console.log('⚠️ birth_date column missing, using fallback query');
+        console.log('⚠️ birthDate column missing, using fallback query');
         return await poolWrapper.execute(
           'SELECT id, name, email, phone, address, createdAt FROM users WHERE id = ? AND tenantId = ?',
-      [id, req.tenant.id]
+      [id, tenantId]
     );
       }
       throw error;
@@ -2332,10 +2371,13 @@ app.post('/api/users/login', async (req, res) => {
     
     // Store plain email (no encryption needed)
     
+    // Use default tenant ID if not provided
+    const tenantId = req.tenant?.id || 1;
+    
     // Get user with hashed password
     const [rows] = await poolWrapper.execute(
       'SELECT * FROM users WHERE email = ? AND tenantId = ?',
-      [email, req.tenant.id]
+      [email, tenantId]
     );
     
     if (rows.length > 0) {
@@ -4336,8 +4378,9 @@ async function startServer() {
       
       // For guest user (id = 1), skip password verification
       if (userId != 1) {
-        // Verify current password (in real app, use bcrypt)
-        if (user[0].password !== currentPassword) {
+        // Verify current password using bcrypt
+        const isCurrentPasswordValid = await verifyPassword(currentPassword, user[0].password);
+        if (!isCurrentPasswordValid) {
           return res.status(400).json({
             success: false,
             message: 'Mevcut şifre yanlış'
@@ -4345,10 +4388,11 @@ async function startServer() {
         }
       }
       
-      // Update password (in real app, hash with bcrypt)
+      // Hash new password with bcrypt
+      const hashedNewPassword = await hashPassword(newPassword);
       await poolWrapper.execute(
         'UPDATE users SET password = ? WHERE id = ?',
-        [newPassword, userId]
+        [hashedNewPassword, userId]
       );
       
       console.log(`✅ Password changed successfully for user ${userId}`);
