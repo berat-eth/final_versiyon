@@ -77,6 +77,11 @@ export class ProductController {
       if (response.success && response.data) {
         const product = this.mapApiProductToAppProduct(response.data);
         
+        // Varyasyonları veritabanından çek
+        if (product.hasVariations) {
+          product.variations = await this.getProductVariationsFromDB(id);
+        }
+        
         // Detaylı ürün görüntüleme logu - async (non-blocking)
         detailedActivityLogger.logProductDetailViewed({
           productId: product.id,
@@ -255,6 +260,20 @@ export class ProductController {
       return filteredProducts;
     } catch (error) {
       console.error('❌ ProductController - filterProducts error:', error);
+      return [];
+    }
+  }
+
+  // Veritabanından ürün varyasyonlarını çek
+  static async getProductVariationsFromDB(productId: number): Promise<ProductVariation[]> {
+    try {
+      const response = await apiService.getProductVariations(productId);
+      if (response.success && response.data) {
+        return response.data;
+      }
+      return [];
+    } catch (error) {
+      console.error('❌ Error getting product variations from DB:', error);
       return [];
     }
   }

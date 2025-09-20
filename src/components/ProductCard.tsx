@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Product } from '../utils/types';
 import { ProductController } from '../controllers/ProductController';
+import { ImageGallery } from './ImageGallery';
 
 interface ProductCardProps {
   product: Product;
@@ -26,10 +27,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
       activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: product.image }}
-          style={styles.image}
-          resizeMode="cover"
+        <ImageGallery
+          images={[
+            product.image1,
+            product.image2,
+            product.image3,
+            product.image4,
+            product.image5,
+            ...(product.images || [])
+          ].filter(img => img && img.trim() !== '')}
+          mainImage={product.image}
+          style={styles.imageGallery}
+          showThumbnails={false}
         />
         {product.stock < 5 && product.stock > 0 && (
           <View style={styles.stockBadge}>
@@ -47,6 +56,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
         <Text style={styles.name} numberOfLines={2}>
           {product.name}
         </Text>
+        
+        {/* Beden bilgisi (varyasyonlu ürünler için) */}
+        {product.hasVariations && product.variations && product.variations.length > 0 && (
+          <View style={styles.sizeContainer}>
+            <Text style={styles.sizeLabel}>Bedenler:</Text>
+            <View style={styles.sizeList}>
+              {product.variations.slice(0, 3).map((variation, index) => (
+                <View key={index} style={styles.sizeChip}>
+                  <Text style={styles.sizeText}>
+                    {variation.options?.[0]?.value || 'N/A'}
+                  </Text>
+                </View>
+              ))}
+              {product.variations.length > 3 && (
+                <View style={styles.sizeChip}>
+                  <Text style={styles.sizeText}>+{product.variations.length - 3}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
         
         <View style={styles.bottomRow}>
           <Text style={styles.price}>
@@ -84,8 +114,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     backgroundColor: '#F8F9FA',
   },
-  image: {
-    width: '100%',
+  imageGallery: {
     height: cardWidth * 0.85, // Slightly reduced height for minimalism
   },
   stockBadge: {
@@ -147,5 +176,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#666666',
+  },
+  sizeContainer: {
+    marginBottom: 8,
+  },
+  sizeLabel: {
+    fontSize: 11,
+    color: '#666666',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  sizeList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  sizeChip: {
+    backgroundColor: '#F0F0F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  sizeText: {
+    fontSize: 10,
+    color: '#333333',
+    fontWeight: '500',
   },
 });

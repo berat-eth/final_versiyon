@@ -3265,9 +3265,39 @@ app.get('/api/products/:productId/variations', async (req, res) => {
     if (!Number.isInteger(numericId) || numericId <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid product id' });
     }
-    const [rows] = await poolWrapper.execute('SELECT * FROM product_variations WHERE productId = ?', [numericId]);
-    
-    res.json({ success: true, data: rows });
+
+    // Varyasyonları ve seçeneklerini birlikte çek
+    const [variations] = await poolWrapper.execute(`
+      SELECT v.*, 
+             JSON_ARRAYAGG(
+               JSON_OBJECT(
+                 'id', o.id,
+                 'variationId', o.variationId,
+                 'value', o.value,
+                 'priceModifier', o.priceModifier,
+                 'stock', o.stock,
+                 'sku', o.sku,
+                 'image', o.image,
+                 'isActive', o.isActive
+               )
+             ) as options
+      FROM product_variations v
+      LEFT JOIN product_variation_options o ON v.id = o.variationId AND o.isActive = true
+      WHERE v.productId = ? AND v.tenantId = ?
+      GROUP BY v.id
+      ORDER BY v.displayOrder, v.name
+    `, [numericId, req.tenant.id]);
+
+    // JSON formatını düzelt
+    const formattedVariations = variations.map(variation => ({
+      id: variation.id,
+      productId: variation.productId,
+      name: variation.name,
+      displayOrder: variation.displayOrder,
+      options: variation.options && variation.options.length > 0 ? variation.options : []
+    }));
+
+    res.json({ success: true, data: formattedVariations });
   } catch (error) {
     console.error('Error fetching product variations:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -3490,12 +3520,15 @@ app.get('/api/categories', async (req, res) => {
       ORDER BY c.name ASC
     `, [req.tenant.id]);
     
+    // Sadece kategori isimlerini döndür (string array)
+    const categoryNames = rows.map(row => row.name).filter(name => name && typeof name === 'string');
+    
     // Update cache
-    categoriesCache = rows;
+    categoriesCache = categoryNames;
     categoriesCacheTime = now;
     console.log('📋 Categories cached for 5 minutes');
     
-    res.json({ success: true, data: rows });
+    res.json({ success: true, data: categoryNames });
   } catch (error) {
     console.error('Error getting categories:', error);
     res.status(500).json({ success: false, message: 'Error getting categories' });

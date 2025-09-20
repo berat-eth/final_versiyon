@@ -603,8 +603,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         contentContainerStyle={styles.categoriesContent}
         removeClippedSubviews={true}
       >
-        {(categories || []).map((category, index) => {
+        {(categories || []).filter(cat => cat && typeof cat === 'string').map((category, index) => {
           const getCategoryIcon = (cat: string) => {
+            // Kategori boş veya undefined ise null döndür
+            if (!cat || typeof cat !== 'string') {
+              return null;
+            }
+            
             // Önce tam eşleşme ara
             if (categoryIcons[cat as keyof typeof categoryIcons]) {
               return categoryIcons[cat as keyof typeof categoryIcons];
@@ -706,6 +711,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         <Text style={styles.productName} numberOfLines={2}>
           {item.name}
         </Text>
+        
+        {/* Beden bilgisi (varyasyonlu ürünler için) */}
+        {item.hasVariations && item.variations && item.variations.length > 0 && (
+          <View style={styles.sizeContainer}>
+            <Text style={styles.sizeLabel}>Bedenler:</Text>
+            <View style={styles.sizeList}>
+              {item.variations.slice(0, 3).map((variation, index) => (
+                <View key={index} style={styles.sizeChip}>
+                  <Text style={styles.sizeText}>
+                    {variation.options?.[0]?.value || 'N/A'}
+                  </Text>
+                </View>
+              ))}
+              {item.variations.length > 3 && (
+                <View style={styles.sizeChip}>
+                  <Text style={styles.sizeText}>+{item.variations.length - 3}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+        
         <View style={styles.productFooter}>
           <View>
             <Text style={styles.productPrice}>
@@ -1660,5 +1687,32 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#333',
     letterSpacing: 0.5,
+  },
+  sizeContainer: {
+    marginBottom: 8,
+  },
+  sizeLabel: {
+    fontSize: 11,
+    color: '#666666',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  sizeList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  sizeChip: {
+    backgroundColor: '#F0F0F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  sizeText: {
+    fontSize: 10,
+    color: '#333333',
+    fontWeight: '500',
   },
 });

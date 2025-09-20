@@ -25,6 +25,7 @@ import { ProductVariationService } from '../services/ProductVariationService';
 import { Colors } from '../theme/colors';
 import { ModernButton } from '../components/ui/ModernButton';
 import { SocialShareButtons } from '../components/SocialShareButtons';
+import { ImageGallery } from '../components/ImageGallery';
 
 interface ProductDetailScreenProps {
   navigation: any;
@@ -328,12 +329,20 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
             <Text style={styles.viewerToastText}>Bu ürünü şu anda {viewerCount} kişi inceliyor</Text>
           </View>
         )}
-        {/* Ana Görsel */}
+        {/* Ana Görsel Galerisi */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: product.image || 'https://via.placeholder.com/400x400?text=No+Image' }}
-            style={styles.image}
-            resizeMode="cover"
+          <ImageGallery
+            images={[
+              product.image1,
+              product.image2,
+              product.image3,
+              product.image4,
+              product.image5,
+              ...(product.images || [])
+            ].filter(img => img && img.trim() !== '')}
+            mainImage={product.image || 'https://via.placeholder.com/400x400?text=No+Image'}
+            style={styles.imageGallery}
+            showThumbnails={true}
           />
           
           {/* Favori Butonu */}
@@ -367,6 +376,16 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
 
           {product.hasVariations && (
             <View style={styles.variationInfo}>
+              <Text style={styles.variationLabel}>Mevcut Bedenler:</Text>
+              <View style={styles.availableSizes}>
+                {product.variations?.map((variation, index) => (
+                  <View key={index} style={styles.sizeChip}>
+                    <Text style={styles.sizeText}>
+                      {variation.options?.[0]?.value || 'N/A'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
               <Text style={styles.variationLabel}>Seçilen:</Text>
               <Text style={styles.variationValue}>
                 {isAllVariationsSelected() ? getSelectedVariationString() : 'Varyasyon seçin'}
@@ -525,8 +544,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: 'relative',
   },
-  image: {
-    width: '100%',
+  imageGallery: {
     height: 400,
   },
   content: {
@@ -789,6 +807,25 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 12,
     color: '#1A1A1A',
+    fontWeight: '500',
+  },
+  availableSizes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  sizeChip: {
+    backgroundColor: '#F0F0F0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  sizeText: {
+    fontSize: 12,
+    color: '#333333',
     fontWeight: '500',
   },
 });

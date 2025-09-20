@@ -425,12 +425,100 @@ class XmlSyncService {
         console.log(`🆕 Added new product: ${product.name}`);
       }
 
+      // Varyasyonları kaydet
+      if (product.hasVariations && product.variationDetails) {
+        await this.upsertProductVariations(tenantId, productId, product.variationDetails);
+      }
+
       this.syncStats.totalProducts++;
       return true;
     } catch (error) {
       console.error(`❌ Error upserting product ${product.name}:`, error.message);
       this.syncStats.errors++;
       return false;
+    }
+  }
+
+  // Ürün varyasyonlarını veritabanına kaydet
+  async upsertProductVariations(tenantId, productId, variationDetails) {
+    try {
+      if (!variationDetails || variationDetails.length === 0) {
+        return;
+      }
+
+      // Önce mevcut varyasyonları sil
+      await this.pool.execute(
+        'DELETE FROM product_variation_options WHERE variationId IN (SELECT id FROM product_variations WHERE productId = ? AND tenantId = ?)',
+        [productId, tenantId]
+      );
+      await this.pool.execute(
+        'DELETE FROM product_variations WHERE productId = ? AND tenantId = ?',
+        [productId, tenantId]
+      );
+
+      // Varyasyonları grupla (beden, renk, vb.)
+      const variationMap = new Map();
+      
+      variationDetails.forEach(variation => {
+        const variationName = 'Beden'; // XML'den gelen varyasyon türü
+        const variationValue = variation.beden;
+        
+        if (!variationValue || variationValue.trim() === '') {
+          return;
+        }
+
+        if (!variationMap.has(variationName)) {
+          variationMap.set(variationName, []);
+        }
+
+        variationMap.get(variationName).push({
+          value: variationValue,
+          priceModifier: variation.fiyat || 0,
+          stock: variation.stok || 0,
+          sku: variation.stokKodu || '',
+          externalId: variation.varyasyonId
+        });
+      });
+
+      // Her varyasyon türü için kayıt oluştur
+      for (const [variationName, options] of variationMap) {
+        // Varyasyon türünü kaydet
+        const [variationResult] = await this.pool.execute(
+          `INSERT INTO product_variations (tenantId, productId, name, displayOrder, createdAt)
+           VALUES (?, ?, ?, ?, ?)`,
+          [tenantId, productId, variationName, 0, new Date()]
+        );
+
+        const variationId = variationResult.insertId;
+
+        // Varyasyon seçeneklerini kaydet
+        for (let i = 0; i < options.length; i++) {
+          const option = options[i];
+          await this.pool.execute(
+            `INSERT INTO product_variation_options 
+             (tenantId, variationId, value, priceModifier, stock, sku, displayOrder, isActive, createdAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              tenantId,
+              variationId,
+              option.value,
+              option.priceModifier,
+              option.stock,
+              option.sku,
+              i,
+              true,
+              new Date()
+            ]
+          );
+        }
+
+        console.log(`✅ Saved ${options.length} options for variation: ${variationName}`);
+      }
+
+      console.log(`✅ Saved variations for product ID: ${productId}`);
+    } catch (error) {
+      console.error(`❌ Error saving product variations:`, error.message);
+      throw error;
     }
   }
 
