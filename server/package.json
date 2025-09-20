@@ -24,6 +24,7 @@
     "pm2:logs": "pm2 logs huglu-api"
   },
   "dependencies": {
+    "@google-cloud/speech": "^7.2.0",
     "axios": "^1.11.0",
     "bcrypt": "^5.1.1",
     "compression": "^1.7.4",
@@ -33,16 +34,16 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
+    "express-slow-down": "^1.6.0",
     "helmet": "^7.1.0",
     "hpp": "^0.2.3",
     "iyzipay": "^2.0.64",
+    "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "mysql2": "^3.14.4",
     "node-cron": "^3.0.3",
     "react-native-async-storage": "^0.0.1",
-    "xml2js": "^0.6.2",
-    "jsonwebtoken": "^9.0.2",
-    "express-slow-down": "^1.6.0"
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",

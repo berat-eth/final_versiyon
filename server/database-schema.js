@@ -172,6 +172,11 @@ async function createDatabaseSchema(pool) {
         category VARCHAR(100) NOT NULL,
         image VARCHAR(500),
         images JSON,
+        image1 VARCHAR(500),
+        image2 VARCHAR(500),
+        image3 VARCHAR(500),
+        image4 VARCHAR(500),
+        image5 VARCHAR(500),
         stock INT DEFAULT 0,
         brand VARCHAR(100),
         rating DECIMAL(3,2) DEFAULT 0.00,
@@ -206,6 +211,28 @@ async function createDatabaseSchema(pool) {
     if (!prodColNames.includes('priceIncludesTax')) {
       await pool.execute('ALTER TABLE products ADD COLUMN priceIncludesTax BOOLEAN DEFAULT false AFTER taxRate');
       console.log('✅ Added priceIncludesTax to products');
+    }
+
+    // Ensure image columns exist in products
+    if (!prodColNames.includes('image1')) {
+      await pool.execute('ALTER TABLE products ADD COLUMN image1 VARCHAR(500) AFTER images');
+      console.log('✅ Added image1 to products');
+    }
+    if (!prodColNames.includes('image2')) {
+      await pool.execute('ALTER TABLE products ADD COLUMN image2 VARCHAR(500) AFTER image1');
+      console.log('✅ Added image2 to products');
+    }
+    if (!prodColNames.includes('image3')) {
+      await pool.execute('ALTER TABLE products ADD COLUMN image3 VARCHAR(500) AFTER image2');
+      console.log('✅ Added image3 to products');
+    }
+    if (!prodColNames.includes('image4')) {
+      await pool.execute('ALTER TABLE products ADD COLUMN image4 VARCHAR(500) AFTER image3');
+      console.log('✅ Added image4 to products');
+    }
+    if (!prodColNames.includes('image5')) {
+      await pool.execute('ALTER TABLE products ADD COLUMN image5 VARCHAR(500) AFTER image4');
+      console.log('✅ Added image5 to products');
     }
 
     // Product Variations table
@@ -943,6 +970,34 @@ async function createDatabaseSchema(pool) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     console.log('✅ user_profiles table ready');
+
+    // Categories table
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        tenantId INT NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        parentId INT NULL,
+        categoryTree TEXT,
+        externalId VARCHAR(255),
+        source VARCHAR(100) DEFAULT 'XML',
+        isActive BOOLEAN DEFAULT true,
+        productCount INT DEFAULT 0,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenantId) REFERENCES tenants(id) ON DELETE CASCADE,
+        FOREIGN KEY (parentId) REFERENCES categories(id) ON DELETE SET NULL,
+        INDEX idx_tenant_categories (tenantId),
+        INDEX idx_category_name (name),
+        INDEX idx_parent_category (parentId),
+        INDEX idx_external_id (externalId),
+        INDEX idx_source (source),
+        INDEX idx_active (isActive),
+        UNIQUE KEY unique_category_per_tenant (name, tenantId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('✅ Categories table ready');
 
     // Recommendations table
     await pool.execute(`

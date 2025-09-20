@@ -25,6 +25,11 @@ export interface Product {
   category: string;
   image: string;
   images?: string[]; // Additional product images
+  image1?: string; // Ayrı sütunlarda saklanan görseller
+  image2?: string;
+  image3?: string;
+  image4?: string;
+  image5?: string;
   stock: number;
   brand: string;
   rating: number;

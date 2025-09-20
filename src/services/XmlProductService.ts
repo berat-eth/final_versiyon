@@ -223,14 +223,27 @@ export class XmlProductService {
       price = discountedPrice > 0 ? discountedPrice : regularPrice;
     }
 
+    // Görselleri ayrı sütunlara böl
+    const images = xmlProduct.Resimler || [];
+    const image1 = images.length > 0 ? images[0] : '';
+    const image2 = images.length > 1 ? images[1] : '';
+    const image3 = images.length > 2 ? images[2] : '';
+    const image4 = images.length > 3 ? images[3] : '';
+    const image5 = images.length > 4 ? images[4] : '';
+
     return {
       id: parseInt(xmlProduct.UrunKartiID),
       name: xmlProduct.UrunAdi,
       description: this.cleanHtml(xmlProduct.Aciklama),
       price: price,
       category: categoryTree.mainCategory,
-      image: xmlProduct.Resimler?.[0] || '',
-      images: xmlProduct.Resimler || [],
+      image: image1,
+      images: images,
+      image1: image1,
+      image2: image2,
+      image3: image3,
+      image4: image4,
+      image5: image5,
       stock: xmlProduct.UrunSecenek?.Secenek?.reduce((total, secenek) => 
         total + (parseInt(secenek.StokAdedi) || 0), 0) || 0,
       brand: xmlProduct.Marka,

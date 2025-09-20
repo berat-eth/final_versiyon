@@ -139,7 +139,7 @@ class XmlSyncService {
   // Ticimax XML item'ını ürün objesine dönüştür
   mapTicimaxProduct(item, source) {
     try {
-      // Resimleri al
+      // Resimleri al ve ayrı sütunlara böl
       let images = [];
       if (item.Resimler && item.Resimler.Resim) {
         images = Array.isArray(item.Resimler.Resim) 
@@ -147,12 +147,36 @@ class XmlSyncService {
           : [item.Resimler.Resim];
       }
 
-      // Varyasyonları al
+      // Görselleri ayrı sütunlara böl
+      const image1 = images.length > 0 ? images[0] : '';
+      const image2 = images.length > 1 ? images[1] : '';
+      const image3 = images.length > 2 ? images[2] : '';
+      const image4 = images.length > 3 ? images[3] : '';
+      const image5 = images.length > 4 ? images[4] : '';
+
+      // Varyasyonları al ve detaylı işle
       let variations = [];
+      let variationDetails = [];
       if (item.UrunSecenek && item.UrunSecenek.Secenek) {
         variations = Array.isArray(item.UrunSecenek.Secenek) 
           ? item.UrunSecenek.Secenek 
           : [item.UrunSecenek.Secenek];
+
+        // Her varyasyon için detaylı bilgi topla
+        variations.forEach(variation => {
+          const beden = variation.EkSecenekOzellik?.Ozellik?.Deger || '';
+          const stok = parseInt(variation.StokAdedi) || 0;
+          const fiyat = this.extractPrice(variation.IndirimliFiyat) || this.extractPrice(variation.SatisFiyati);
+          
+          variationDetails.push({
+            varyasyonId: variation.VaryasyonID,
+            beden: beden,
+            stok: stok,
+            fiyat: fiyat,
+            stokKodu: variation.StokKodu,
+            barkod: variation.Barkod
+          });
+        });
       }
 
       // Toplam stok hesapla
@@ -174,8 +198,13 @@ class XmlSyncService {
         price: minPrice === Number.MAX_VALUE ? 0 : minPrice,
         category: this.extractMainCategory(item.KategoriTree || item.Kategori),
         brand: item.Marka || 'Huğlu Outdoor',
-        image: images.length > 0 ? images[0] : '', // Ana görsel (ilk görsel)
+        image: image1, // Ana görsel (ilk görsel)
         images: JSON.stringify(images), // Tüm görseller JSON olarak
+        image1: image1,
+        image2: image2,
+        image3: image3,
+        image4: image4,
+        image5: image5,
         stock: totalStock,
         rating: 0, // Ticimax'te rating yok
         reviewCount: 0, // Ticimax'te review yok
@@ -184,10 +213,12 @@ class XmlSyncService {
         lastUpdated: new Date(),
         // Ek bilgiler
         variations: variations.length,
+        variationDetails: JSON.stringify(variationDetails), // Varyasyon detayları
         categoryTree: item.KategoriTree || '',
         productUrl: item.UrunUrl || '',
         salesUnit: item.SatisBirimi || 'ADET',
-        totalImages: images.length // Toplam görsel sayısı
+        totalImages: images.length, // Toplam görsel sayısı
+        hasVariations: variations.length > 0
       };
 
       // Gerekli alanları kontrol et
@@ -287,7 +318,7 @@ class XmlSyncService {
     try {
               // Önce external ID ile mevcut ürünü kontrol et
         const [existing] = await this.pool.execute(
-          'SELECT id, name, price, stock, image FROM products WHERE externalId = ? AND tenantId = ?',
+          'SELECT id, name, price, stock, image, images, image1, image2, image3, image4, image5, hasVariations FROM products WHERE externalId = ? AND tenantId = ?',
           [product.externalId, tenantId]
         );
 
@@ -314,6 +345,30 @@ class XmlSyncService {
           updates.push('images = ?');
           hasChanges = true;
         }
+        if (existingProduct.image1 !== product.image1) {
+          updates.push('image1 = ?');
+          hasChanges = true;
+        }
+        if (existingProduct.image2 !== product.image2) {
+          updates.push('image2 = ?');
+          hasChanges = true;
+        }
+        if (existingProduct.image3 !== product.image3) {
+          updates.push('image3 = ?');
+          hasChanges = true;
+        }
+        if (existingProduct.image4 !== product.image4) {
+          updates.push('image4 = ?');
+          hasChanges = true;
+        }
+        if (existingProduct.image5 !== product.image5) {
+          updates.push('image5 = ?');
+          hasChanges = true;
+        }
+        if (existingProduct.hasVariations !== product.hasVariations) {
+          updates.push('hasVariations = ?');
+          hasChanges = true;
+        }
 
         if (hasChanges) {
           await this.pool.execute(
@@ -323,6 +378,12 @@ class XmlSyncService {
               ...(updates.includes('price = ?') ? [product.price] : []),
               ...(updates.includes('stock = ?') ? [product.stock] : []),
               ...(updates.includes('images = ?') ? [product.images] : []),
+              ...(updates.includes('image1 = ?') ? [product.image1] : []),
+              ...(updates.includes('image2 = ?') ? [product.image2] : []),
+              ...(updates.includes('image3 = ?') ? [product.image3] : []),
+              ...(updates.includes('image4 = ?') ? [product.image4] : []),
+              ...(updates.includes('image5 = ?') ? [product.image5] : []),
+              ...(updates.includes('hasVariations = ?') ? [product.hasVariations] : []),
               product.lastUpdated,
               existingProduct.id
             ]
@@ -334,8 +395,8 @@ class XmlSyncService {
       } else {
         // Yeni ürün ekle
         await this.pool.execute(
-          `INSERT INTO products (tenantId, name, description, price, category, image, images, stock, brand, rating, reviewCount, externalId, source, lastUpdated) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO products (tenantId, name, description, price, category, image, images, image1, image2, image3, image4, image5, stock, brand, rating, reviewCount, externalId, source, hasVariations, lastUpdated) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             tenantId,
             product.name,
@@ -344,12 +405,18 @@ class XmlSyncService {
             product.category,
             product.image,
             product.images,
+            product.image1,
+            product.image2,
+            product.image3,
+            product.image4,
+            product.image5,
             product.stock,
             product.brand,
             product.rating,
             product.reviewCount,
             product.externalId,
             product.source,
+            product.hasVariations,
             product.lastUpdated
           ]
         );
@@ -365,6 +432,85 @@ class XmlSyncService {
       this.syncStats.errors++;
       return false;
     }
+  }
+
+  // Kategorileri veritabanına kaydet
+  async upsertCategories(categories, tenantId) {
+    try {
+      for (const category of categories) {
+        // Mevcut kategoriyi kontrol et
+        const [existing] = await this.pool.execute(
+          'SELECT id FROM categories WHERE name = ? AND tenantId = ?',
+          [category.name, tenantId]
+        );
+
+        if (existing.length > 0) {
+          // Mevcut kategoriyi güncelle
+          await this.pool.execute(
+            `UPDATE categories SET 
+             description = ?, 
+             categoryTree = ?, 
+             externalId = ?, 
+             updatedAt = ? 
+             WHERE id = ?`,
+            [
+              category.description,
+              category.categoryTree,
+              category.externalId,
+              new Date(),
+              existing[0].id
+            ]
+          );
+          console.log(`🔄 Updated category: ${category.name}`);
+        } else {
+          // Yeni kategori ekle
+          await this.pool.execute(
+            `INSERT INTO categories (tenantId, name, description, categoryTree, externalId, source) 
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              tenantId,
+              category.name,
+              category.description,
+              category.categoryTree,
+              category.externalId,
+              'XML'
+            ]
+          );
+          console.log(`🆕 Added new category: ${category.name}`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error upserting categories:`, error.message);
+      throw error;
+    }
+  }
+
+  // XML'den kategorileri çıkar
+  extractCategoriesFromProducts(products) {
+    const categoryMap = new Map();
+    
+    products.forEach(product => {
+      const categoryName = product.category;
+      const categoryTree = product.categoryTree || '';
+      
+      if (categoryName && !categoryMap.has(categoryName)) {
+        // Kategori ağacını parse et
+        const treeParts = categoryTree.split('/').filter(part => part.trim());
+        const mainCategory = treeParts[0] || categoryName;
+        const subCategories = treeParts.slice(1);
+        
+        categoryMap.set(categoryName, {
+          name: categoryName,
+          description: `${categoryName} kategorisi`,
+          categoryTree: categoryTree,
+          externalId: `cat_${categoryName.replace(/\s+/g, '_').toLowerCase()}`,
+          mainCategory: mainCategory,
+          subCategories: subCategories
+        });
+      }
+    });
+    
+    return Array.from(categoryMap.values());
   }
 
   // Tüm XML kaynaklarından veri çek ve senkronize et
@@ -411,6 +557,12 @@ class XmlSyncService {
             
             // Ürünlere dönüştür
             const products = this.parseXmlToProducts(xmlData, source);
+            
+            // Kategorileri çıkar ve kaydet
+            console.log(`\n📂 Extracting categories from products...`);
+            const categories = this.extractCategoriesFromProducts(products);
+            await this.upsertCategories(categories, tenant.id);
+            console.log(`✅ Processed ${categories.length} categories`);
             
             // Her ürünü veritabanına ekle/güncelle
             for (const product of products) {

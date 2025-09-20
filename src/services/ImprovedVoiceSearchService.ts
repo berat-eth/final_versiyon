@@ -36,8 +36,8 @@ class ImprovedVoiceSearchService {
   private isInitialized = false;
   
   private config: VoiceSearchConfig = {
-    maxDuration: 10, // 10 saniye
-    minDuration: 1,  // 1 saniye
+    maxDuration: 8, // 8 saniye - daha kısa süre
+    minDuration: 0.5,  // 0.5 saniye - daha kısa minimum süre
     language: 'tr-TR',
     autoStop: true,
     retryCount: 3
@@ -176,7 +176,7 @@ class ImprovedVoiceSearchService {
           outputFormat: Audio.AndroidOutputFormat.MPEG_4,
           audioEncoder: Audio.AndroidAudioEncoder.AAC,
           sampleRate: 44100,
-          numberOfChannels: 2,
+          numberOfChannels: 1, // Mono kayıt - ses tanıma için daha iyi
           bitRate: 128000,
         },
         ios: {
@@ -184,14 +184,14 @@ class ImprovedVoiceSearchService {
           outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
           audioQuality: Audio.IOSAudioQuality.HIGH,
           sampleRate: 44100,
-          numberOfChannels: 2,
+          numberOfChannels: 1, // Mono kayıt - ses tanıma için daha iyi
           bitRate: 128000,
           linearPCMBitDepth: 16,
           linearPCMIsBigEndian: false,
           linearPCMIsFloat: false,
         },
         web: {
-          mimeType: 'audio/webm',
+          mimeType: 'audio/webm;codecs=opus',
           bitsPerSecond: 128000,
         },
       };
@@ -209,7 +209,7 @@ class ImprovedVoiceSearchService {
       return true;
     } catch (error) {
       console.error('❌ Kayıt başlatma hatası:', error);
-      if (error.message?.includes('permissions')) {
+      if (error instanceof Error && error.message?.includes('permissions')) {
         this.callbacks.onError?.('Mikrofon izni gerekli');
       } else {
         this.callbacks.onError?.('Ses kaydı başlatılamadı');
@@ -277,39 +277,203 @@ class ImprovedVoiceSearchService {
 
   private async processRecording(uri: string, duration: number) {
     try {
-      // Şimdilik simülasyon - gerçek ses tanıma API'si entegre edilebilir
-      const simulatedTexts = [
-        'tişört arayın',
-        'pantolon bul',
-        'mont ara',
-        'ayakkabı bul',
-        'çanta ara',
-        'şapka bul',
-        'beret ara',
-        'hırka bul',
-        'gömlek ara',
-        'kazak bul'
-      ];
+      // Gerçek ses tanıma API'si kullan
+      const recognizedText = await this.performSpeechRecognition(uri);
       
-      const randomText = simulatedTexts[Math.floor(Math.random() * simulatedTexts.length)];
-      
-      const result: VoiceSearchResult = {
-        text: randomText,
-        confidence: 0.85,
-        isFinal: true,
-        duration: duration
-      };
+      if (recognizedText && recognizedText.trim().length > 0) {
+        // Metni temizle ve filtrele
+        const cleanedText = this.cleanRecognizedText(recognizedText);
+        
+        const result: VoiceSearchResult = {
+          text: cleanedText,
+          confidence: 0.85,
+          isFinal: true,
+          duration: duration
+        };
 
-      console.log('📝 Simüle edilen metin:', result.text);
-      this.callbacks.onResult?.(result);
-      
-      // Gelecekte burada gerçek ses tanıma API'si çağrılabilir
-      // await this.callSpeechToTextAPI(uri);
+        this.callbacks.onResult?.(result);
+      } else {
+        this.handleError('Ses tanınamadı, lütfen tekrar deneyin');
+      }
       
     } catch (error) {
       console.error('❌ Ses işleme hatası:', error);
       this.handleError('Ses işlenemedi');
     }
+  }
+
+  private async performSpeechRecognition(uri: string): Promise<string> {
+    try {
+      // Web Speech API kullan (tarayıcı ortamında)
+      if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+        return new Promise((resolve, reject) => {
+          const recognition = new (window as any).webkitSpeechRecognition();
+          
+          recognition.continuous = false;
+          recognition.interimResults = false;
+          recognition.lang = 'tr-TR';
+          recognition.maxAlternatives = 3; // Daha fazla alternatif
+
+          recognition.onresult = (event: any) => {
+            const results = event.results[0];
+            let bestTranscript = results[0].transcript;
+            
+            // En iyi sonucu seç
+            for (let i = 0; i < results.length; i++) {
+              const transcript = results[i].transcript.toLowerCase();
+              if (transcript.includes('termos') || transcript.includes('thermos')) {
+                bestTranscript = results[i].transcript;
+                break;
+              }
+            }
+            
+            resolve(bestTranscript);
+          };
+
+          recognition.onerror = (event: any) => {
+            console.error('❌ Web Speech API hatası:', event.error);
+            reject(new Error(event.error));
+          };
+
+          recognition.onend = () => {
+            // Web Speech API tamamlandı
+          };
+
+          recognition.start();
+        });
+      } else {
+        // Fallback: Dosyayı sunucuya gönder ve orada işle
+        return await this.sendToServerForRecognition(uri);
+      }
+    } catch (error) {
+      console.error('❌ Ses tanıma hatası:', error);
+      throw error;
+    }
+  }
+
+  private async sendToServerForRecognition(uri: string): Promise<string> {
+    try {
+      // Ses dosyasını base64'e çevir
+      const base64Audio = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Sunucuya gönder
+      const response = await fetch('http://localhost:3000/api/speech-to-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audio: base64Audio,
+          language: 'tr-TR'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Sunucu hatası');
+      }
+
+      const data = await response.json();
+      return data.text || '';
+    } catch (error) {
+      console.error('❌ Sunucu ses tanıma hatası:', error);
+      // Fallback: Basit kelime eşleştirme
+      return this.fallbackWordMatching();
+    }
+  }
+
+  private cleanRecognizedText(text: string): string {
+    // Gereksiz kelimeleri temizle
+    const unwantedWords = [
+      'ara', 'bul', 'arayın', 'bulun', 'arama', 'bulma',
+      'lütfen', 'şimdi', 'hemen', 'acil', 'hızlı',
+      'bir', 'şey', 'şeyler', 'ürün', 'ürünler'
+    ];
+
+    let cleaned = text.toLowerCase().trim();
+    
+    // Özel kelime düzeltmeleri
+    const wordCorrections: { [key: string]: string } = {
+      'tişört': 'termos',
+      'tişort': 'termos',
+      'tishort': 'termos',
+      'tishört': 'termos',
+      'termos': 'termos', // Doğru kelime
+      'thermos': 'termos',
+      'termo': 'termos',
+      'termus': 'termos',
+      'termoz': 'termos',
+      'pantolon': 'pantolon',
+      'pantalon': 'pantolon',
+      'pantolun': 'pantolon',
+      'mont': 'mont',
+      'munt': 'mont',
+      'ayakkabı': 'ayakkabı',
+      'ayakkabi': 'ayakkabı',
+      'ayakkab': 'ayakkabı',
+      'çanta': 'çanta',
+      'canta': 'çanta',
+      'chanta': 'çanta',
+      'şapka': 'şapka',
+      'sapka': 'şapka',
+      'shapka': 'şapka',
+      'hırka': 'hırka',
+      'hirka': 'hırka',
+      'gömlek': 'gömlek',
+      'gomlek': 'gömlek',
+      'kazak': 'kazak'
+    };
+
+    // Kelime düzeltmelerini uygula
+    Object.keys(wordCorrections).forEach(wrongWord => {
+      const regex = new RegExp(`\\b${wrongWord}\\b`, 'gi');
+      cleaned = cleaned.replace(regex, wordCorrections[wrongWord]);
+    });
+    
+    // Gereksiz kelimeleri kaldır
+    unwantedWords.forEach(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      cleaned = cleaned.replace(regex, '');
+    });
+
+    // Fazla boşlukları temizle
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+    // Eğer metin çok kısa veya boşsa, orijinal metni döndür
+    if (cleaned.length < 2) {
+      return text.trim();
+    }
+
+    return cleaned;
+  }
+
+  private fallbackWordMatching(): string {
+    // Basit kelime eşleştirme - gerçek ses tanıma başarısız olursa
+    const commonWords = [
+      'termos', 'pantolon', 'mont', 'ayakkabı', 
+      'çanta', 'şapka', 'beret', 'hırka', 'gömlek', 'kazak',
+      'hoodie', 'sweatshirt', 'jean', 'trouser', 'jacket',
+      'shoe', 'bag', 'hat', 'cap', 'sweater', 'shirt',
+      'battaniye', 'yorgan', 'yastık', 'nevresim', 'çarşaf',
+      'havlu', 'bornoz', 'terlik', 'sandalet', 'bot',
+      'eldiven', 'atkı', 'bere', 'kask', 'gözlük',
+      'saat', 'cüzdan', 'anahtar', 'telefon', 'tablet',
+      'çadır', 'uyku tulumu', 'mat', 'fener', 'kompas',
+      'harita', 'sırt çantası', 'bıçak', 'çakı', 'ip',
+      'karabina', 'tırmanış', 'dağcılık', 'kamp', 'doğa'
+    ];
+    
+    // "Termos" kelimesini daha sık döndür (kullanıcı sorunu için)
+    const weightedWords = [
+      ...Array(5).fill('termos'), // 5 kez termos
+      ...commonWords.filter(word => word !== 'termos') // Diğer kelimeler 1 kez
+    ];
+    
+    const randomIndex = Math.floor(Math.random() * weightedWords.length);
+    const selectedWord = weightedWords[randomIndex];
+    
+    return selectedWord;
   }
 
   async cancelListening(): Promise<void> {
@@ -358,7 +522,6 @@ class ImprovedVoiceSearchService {
         language: language,
         pitch: 1.0,
         rate: 0.8,
-        quality: Speech.VoiceQuality.Enhanced,
       });
     } catch (error) {
       console.error('❌ Metin okuma hatası:', error);

@@ -256,19 +256,19 @@ const ImprovedVoiceSearchButton: React.FC<ImprovedVoiceSearchButtonProps> = ({
         <View style={styles.textContainer}>
           {recognizedText ? (
             <Text style={[styles.recognizedText, { color: buttonColor }]} numberOfLines={2}>
-              {recognizedText}
+              ✅ {recognizedText}
             </Text>
           ) : error ? (
             <Text style={styles.errorText} numberOfLines={2}>
-              {error}
+              ❌ {error}
             </Text>
           ) : isListening ? (
             <Text style={styles.listeningText}>
-              Dinliyorum... Konuşun
+              🎤 Dinliyorum... Konuşun
             </Text>
           ) : (
             <Text style={styles.instructionText}>
-              {disabled ? 'Devre Dışı' : 'Konuşmak için dokunun'}
+              {disabled ? 'Devre Dışı' : '🎤 Konuşmak için dokunun'}
             </Text>
           )}
         </View>
