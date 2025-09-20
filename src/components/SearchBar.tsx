@@ -15,8 +15,6 @@ interface SearchBarProps {
   onChangeText: (text: string) => void;
   placeholder?: string;
   onSubmit?: () => void;
-  onBarcodePress?: () => void;
-  showBarcodeButton?: boolean;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
@@ -24,8 +22,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onChangeText,
   placeholder = 'Ürün ara...',
   onSubmit,
-  onBarcodePress,
-  showBarcodeButton = false,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
@@ -107,15 +103,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
         />
-        {showBarcodeButton && onBarcodePress && (
-          <TouchableOpacity onPress={onBarcodePress} style={styles.barcodeButton}>
-            <Image
-              source={require('../../assets/barkod tarama.png')}
-              style={styles.barcodeIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        )}
         {value.length > 0 && (
           <TouchableOpacity onPress={() => onChangeText('')}>
             <Text style={styles.clearIcon}>✕</Text>
@@ -181,15 +168,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1A1A2E',
     fontWeight: '500',
-  },
-  barcodeButton: {
-    marginRight: 8,
-    padding: 4,
-  },
-  barcodeIcon: {
-    width: 20,
-    height: 20,
-    tintColor: '#666666',
   },
   clearIcon: {
     fontSize: 18,

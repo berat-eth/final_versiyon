@@ -11,7 +11,6 @@ interface ProductListHeaderProps {
   onSearchSubmit: () => void;
   onFilterPress: () => void;
   hasActiveFilters: boolean;
-  onBarcodePress?: () => void;
 }
 
 export const ProductListHeader: React.FC<ProductListHeaderProps> = ({
@@ -20,7 +19,6 @@ export const ProductListHeader: React.FC<ProductListHeaderProps> = ({
   onSearchSubmit,
   onFilterPress,
   hasActiveFilters,
-  onBarcodePress,
 }) => {
   return (
     <LinearGradient
@@ -33,8 +31,6 @@ export const ProductListHeader: React.FC<ProductListHeaderProps> = ({
           onChangeText={onSearchChange}
           placeholder="Ürün ara..."
           onSubmit={onSearchSubmit}
-          onBarcodePress={onBarcodePress}
-          showBarcodeButton={!!onBarcodePress}
         />
       </View>
 
