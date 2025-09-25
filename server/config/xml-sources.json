@@ -1,0 +1,38 @@
+{
+  "sources": [
+    {
+      "name": "Huglu Outdoor",
+      "url": "https://www.huglu.com.tr/feed.xml",
+      "category": "outdoor",
+      "priority": 1,
+      "enabled": true,
+      "updateInterval": 3600000,
+      "timeout": 30000
+    },
+    {
+      "name": "Huglu Sports",
+      "url": "https://www.huglu.com.tr/sports-feed.xml",
+      "category": "sports",
+      "priority": 2,
+      "enabled": true,
+      "updateInterval": 3600000,
+      "timeout": 30000
+    },
+    {
+      "name": "Huglu Hunting",
+      "url": "https://www.huglu.com.tr/hunting-feed.xml",
+      "category": "hunting",
+      "priority": 3,
+      "enabled": true,
+      "updateInterval": 3600000,
+      "timeout": 30000
+    }
+  ],
+  "settings": {
+    "defaultUpdateInterval": 3600000,
+    "maxRetries": 3,
+    "retryDelay": 5000,
+    "batchSize": 100,
+    "logLevel": "info"
+  }
+}

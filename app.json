@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "Huğlu Outdoor",
+    "slug": "huglu-outdoor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/iconns.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/iconns.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Bu uygulama güvenli giriş için Face ID kullanır",
+        "NSMicrophoneUsageDescription": "Bu uygulama sesli arama özelliği için mikrofon kullanır"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/iconns.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "NFC",
+        "RECORD_AUDIO"
+      ],
+      "package": "com.berat_3322.hugluoutdoor"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "EXPO_PUBLIC_API_BASE_URL": "https://api.zerodaysoftware.tr/api",
+      "EXPO_PUBLIC_TENANT_ID": "1",
+      "EXPO_PUBLIC_TENANT_API_KEY": "huglu_1f3a9b6c2e8d4f0a7b1c3d5e9f2468ab1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f",
+      "eas": {
+        "projectId": "bb72d05a-27a4-4f48-8cec-872092027485"
+      }
+    },
+    "plugins": [
+      "expo-location",
+      "expo-local-authentication",
+      "expo-image-picker",
+      "expo-secure-store",
+      "expo-av",
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "NFC kullanımı için gerekli"
+        }
+      ]
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1757756087059.3179,
+    "performanceType": "screen_load",
+    "performanceData": {
+      "screenName": "ProductDetail",
+      "loadTime": 1200,
+      "renderTime": 800,
+      "memoryUsage": 45.2
+    },
+    "timestamp": "2025-09-13T09:34:47.059Z"
+  }
+]

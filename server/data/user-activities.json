@@ -1,0 +1,571 @@
+{
+  "activities": [
+    {
+      "id": 1757754259405.0505,
+      "userId": 1,
+      "activityType": "user_registered",
+      "activityData": {
+        "email": "ahmet@example.com",
+        "phone": "05551234567"
+      },
+      "timestamp": "2025-09-13T09:04:19.405Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754259406.0818,
+      "userId": 1,
+      "activityType": "user_login",
+      "activityData": {
+        "email": "ahmet@example.com",
+        "loginTime": "2025-09-13T09:04:19.406Z"
+      },
+      "timestamp": "2025-09-13T09:04:19.406Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754259407.4065,
+      "userId": 1,
+      "activityType": "product_viewed",
+      "activityData": {
+        "productId": 123,
+        "productName": "Tişört"
+      },
+      "timestamp": "2025-09-13T09:04:19.407Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754259410.7888,
+      "userId": 1,
+      "activityType": "cart_added",
+      "activityData": {
+        "productId": 123,
+        "quantity": 2,
+        "price": 150
+      },
+      "timestamp": "2025-09-13T09:04:19.410Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754259411.9277,
+      "userId": 2,
+      "activityType": "user_registered",
+      "activityData": {
+        "email": "ayse@example.com",
+        "phone": "05559876543"
+      },
+      "timestamp": "2025-09-13T09:04:19.411Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754259412.1174,
+      "userId": 2,
+      "activityType": "user_login",
+      "activityData": {
+        "email": "ayse@example.com",
+        "loginTime": "2025-09-13T09:04:19.412Z"
+      },
+      "timestamp": "2025-09-13T09:04:19.412Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754259413.9387,
+      "userId": 2,
+      "activityType": "product_viewed",
+      "activityData": {
+        "productId": 456,
+        "productName": "Pantolon"
+      },
+      "timestamp": "2025-09-13T09:04:19.413Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754259415.449,
+      "userId": 2,
+      "activityType": "order_placed",
+      "activityData": {
+        "orderId": 789,
+        "totalAmount": 300
+      },
+      "timestamp": "2025-09-13T09:04:19.415Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754259415.8357,
+      "userId": 3,
+      "activityType": "user_registered",
+      "activityData": {
+        "email": "mehmet@example.com",
+        "phone": "05555555555"
+      },
+      "timestamp": "2025-09-13T09:04:19.416Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754259416.9668,
+      "userId": 3,
+      "activityType": "user_login",
+      "activityData": {
+        "email": "mehmet@example.com",
+        "loginTime": "2025-09-13T09:04:19.416Z"
+      },
+      "timestamp": "2025-09-13T09:04:19.416Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754259418.9985,
+      "userId": 3,
+      "activityType": "profile_viewed",
+      "activityData": {
+        "screen": "ProfileScreen"
+      },
+      "timestamp": "2025-09-13T09:04:19.418Z",
+      "date": "2025-09-13",
+      "time": "12:04:19"
+    },
+    {
+      "id": 1757754553089.6265,
+      "userId": 1,
+      "activityType": "product_detail_viewed",
+      "activityData": {
+        "productId": 123,
+        "productName": "Erkek Tişört - Mavi",
+        "productPrice": 89.99,
+        "productCategory": "Giyim",
+        "productBrand": "Huglu",
+        "productImage": "https://example.com/tshirt.jpg",
+        "variations": {
+          "color": "Mavi",
+          "size": "L",
+          "material": "Pamuk"
+        },
+        "variationString": "Renk: Mavi, Beden: L, Malzeme: Pamuk",
+        "discountAmount": 10,
+        "originalPrice": 99.99,
+        "finalPrice": 89.99,
+        "viewDuration": 45,
+        "viewSource": "product_detail"
+      },
+      "timestamp": "2025-09-13T09:09:13.089Z",
+      "date": "2025-09-13",
+      "time": "12:09:13"
+    },
+    {
+      "id": 1757754553090.8796,
+      "userId": 1,
+      "activityType": "cart_item_added",
+      "activityData": {
+        "productId": 123,
+        "productName": "Erkek Tişört - Mavi",
+        "productPrice": 89.99,
+        "quantity": 2,
+        "variations": {
+          "color": "Mavi",
+          "size": "L",
+          "material": "Pamuk"
+        },
+        "variationString": "Renk: Mavi, Beden: L, Malzeme: Pamuk",
+        "totalPrice": 179.98,
+        "cartItemId": "cart_123_001",
+        "discountAmount": 10,
+        "originalPrice": 99.99,
+        "finalPrice": 89.99,
+        "action": "added",
+        "cartTotalBefore": 0,
+        "cartTotalAfter": 179.98,
+        "cartItemCount": 1
+      },
+      "timestamp": "2025-09-13T09:09:13.090Z",
+      "date": "2025-09-13",
+      "time": "12:09:13"
+    },
+    {
+      "id": 1757754553091.3306,
+      "userId": 1,
+      "activityType": "product_variation_selected",
+      "activityData": {
+        "productId": 123,
+        "productName": "Erkek Tişört - Mavi",
+        "selectedVariation": {
+          "color": "Kırmızı",
+          "size": "XL"
+        },
+        "variationChange": true
+      },
+      "timestamp": "2025-09-13T09:09:13.091Z",
+      "date": "2025-09-13",
+      "time": "12:09:13"
+    },
+    {
+      "id": 1757754553092.102,
+      "userId": 1,
+      "activityType": "order_started",
+      "activityData": {
+        "orderId": "ORD-2024-001",
+        "orderNumber": "HUG-2024-001",
+        "totalAmount": 179.98,
+        "productCount": 1,
+        "products": [
+          {
+            "productId": 123,
+            "productName": "Erkek Tişört - Mavi",
+            "quantity": 2,
+            "price": 89.99,
+            "variations": {
+              "color": "Mavi",
+              "size": "L",
+              "material": "Pamuk"
+            },
+            "variationString": "Renk: Mavi, Beden: L, Malzeme: Pamuk"
+          }
+        ],
+        "paymentMethod": "credit_card",
+        "paymentStatus": "pending",
+        "orderStatus": "pending",
+        "shippingAddress": "İstanbul, Beşiktaş, Levent Mah. No:123",
+        "billingAddress": "İstanbul, Beşiktaş, Levent Mah. No:123",
+        "action": "started",
+        "step": "cart_review"
+      },
+      "timestamp": "2025-09-13T09:09:13.092Z",
+      "date": "2025-09-13",
+      "time": "12:09:13"
+    },
+    {
+      "id": 1757754553093.7979,
+      "userId": 1,
+      "activityType": "order_completed",
+      "activityData": {
+        "orderId": "ORD-2024-001",
+        "orderNumber": "HUG-2024-001",
+        "totalAmount": 179.98,
+        "productCount": 1,
+        "products": [
+          {
+            "productId": 123,
+            "productName": "Erkek Tişört - Mavi",
+            "quantity": 2,
+            "price": 89.99,
+            "variations": {
+              "color": "Mavi",
+              "size": "L",
+              "material": "Pamuk"
+            },
+            "variationString": "Renk: Mavi, Beden: L, Malzeme: Pamuk"
+          }
+        ],
+        "paymentMethod": "credit_card",
+        "paymentStatus": "completed",
+        "orderStatus": "confirmed",
+        "shippingAddress": "İstanbul, Beşiktaş, Levent Mah. No:123",
+        "billingAddress": "İstanbul, Beşiktaş, Levent Mah. No:123",
+        "action": "completed",
+        "completionTime": "2025-09-13T09:09:13.093Z",
+        "orderProcessDuration": 300
+      },
+      "timestamp": "2025-09-13T09:09:13.093Z",
+      "date": "2025-09-13",
+      "time": "12:09:13"
+    },
+    {
+      "id": 1757754553095.564,
+      "userId": 1,
+      "activityType": "payment_completed",
+      "activityData": {
+        "orderId": "ORD-2024-001",
+        "paymentId": "PAY-2024-001",
+        "paymentMethod": "credit_card",
+        "paymentAmount": 179.98,
+        "paymentCompletedAt": "2025-09-13T09:09:13.094Z"
+      },
+      "timestamp": "2025-09-13T09:09:13.095Z",
+      "date": "2025-09-13",
+      "time": "12:09:13"
+    },
+    {
+      "id": 1757754553096.7996,
+      "userId": 2,
+      "activityType": "search_performed",
+      "activityData": {
+        "searchTerm": "kadın elbise",
+        "searchCategory": "Giyim",
+        "searchFilters": {
+          "priceRange": "50-200",
+          "color": "Siyah"
+        },
+        "resultsCount": 15,
+        "searchDuration": 2.5,
+        "searchTimestamp": "2025-09-13T09:09:13.095Z"
+      },
+      "timestamp": "2025-09-13T09:09:13.096Z",
+      "date": "2025-09-13",
+      "time": "12:09:13"
+    },
+    {
+      "id": 1757754553097.7566,
+      "userId": 2,
+      "activityType": "search_result_clicked",
+      "activityData": {
+        "searchTerm": "kadın elbise",
+        "clickedProductId": 456,
+        "clickedProductName": "Kadın Elbise - Siyah",
+        "clickPosition": 3,
+        "clickTimestamp": "2025-09-13T09:09:13.097Z"
+      },
+      "timestamp": "2025-09-13T09:09:13.097Z",
+      "date": "2025-09-13",
+      "time": "12:09:13"
+    },
+    {
+      "id": 1757754553098.2207,
+      "userId": 3,
+      "activityType": "product_favorited",
+      "activityData": {
+        "productId": 789,
+        "productName": "Erkek Mont - Siyah",
+        "favoritedAt": "2025-09-13T09:09:13.098Z"
+      },
+      "timestamp": "2025-09-13T09:09:13.098Z",
+      "date": "2025-09-13",
+      "time": "12:09:13"
+    },
+    {
+      "id": 1757754553099.1719,
+      "userId": 3,
+      "activityType": "discount_code_applied",
+      "activityData": {
+        "code": "WELCOME10",
+        "discountAmount": 20,
+        "orderId": "ORD-2024-002",
+        "appliedAt": "2025-09-13T09:09:13.099Z"
+      },
+      "timestamp": "2025-09-13T09:09:13.099Z",
+      "date": "2025-09-13",
+      "time": "12:09:13"
+    },
+    {
+      "id": 1757755680063.1638,
+      "userId": 1,
+      "activityType": "page_view_analytics",
+      "activityData": {
+        "screenName": "ProductDetail",
+        "startTime": 1757755635062,
+        "endTime": 1757755680062,
+        "duration": 45000,
+        "scrollDepth": 1200,
+        "maxScrollDepth": 1500,
+        "scrollPercentage": 80,
+        "viewportHeight": 800,
+        "contentHeight": 2000
+      },
+      "timestamp": "2025-09-13T09:28:00.063Z",
+      "date": "2025-09-13",
+      "time": "12:28:00"
+    },
+    {
+      "id": 1757755680065.046,
+      "userId": 1,
+      "activityType": "click_heatmap",
+      "activityData": {
+        "clicks": [
+          {
+            "screenName": "ProductDetail",
+            "elementType": "button",
+            "elementId": "add-to-cart",
+            "x": 200,
+            "y": 300,
+            "timestamp": 1757755650064
+          },
+          {
+            "screenName": "ProductDetail",
+            "elementType": "image",
+            "elementId": "product-image-1",
+            "x": 150,
+            "y": 200,
+            "timestamp": 1757755655065
+          },
+          {
+            "screenName": "ProductDetail",
+            "elementType": "link",
+            "elementId": "product-reviews",
+            "x": 300,
+            "y": 400,
+            "timestamp": 1757755660065
+          }
+        ],
+        "timestamp": 1757755680065
+      },
+      "timestamp": "2025-09-13T09:28:00.065Z",
+      "date": "2025-09-13",
+      "time": "12:28:00"
+    },
+    {
+      "id": 1757755680066.8406,
+      "userId": 1,
+      "activityType": "cart_abandonment",
+      "activityData": {
+        "cartId": "cart_123_001",
+        "userId": 1,
+        "abandonedAt": 1757755680066,
+        "timeInCart": 15,
+        "cartValue": 299.98,
+        "itemCount": 2,
+        "lastAction": "checkout_start",
+        "abandonmentStage": "checkout_start",
+        "products": [
+          {
+            "productId": 123,
+            "productName": "Erkek Tişört - Mavi",
+            "price": 89.99,
+            "quantity": 2,
+            "variations": {
+              "color": "Mavi",
+              "size": "L"
+            }
+          }
+        ]
+      },
+      "timestamp": "2025-09-13T09:28:00.066Z",
+      "date": "2025-09-13",
+      "time": "12:28:00"
+    },
+    {
+      "id": 1757755680067.1133,
+      "userId": 1,
+      "activityType": "product_comparison",
+      "activityData": {
+        "userId": 1,
+        "comparedProducts": [
+          {
+            "productId": 123,
+            "productName": "Erkek Tişört - Mavi",
+            "price": 89.99,
+            "category": "Giyim",
+            "brand": "Huglu"
+          },
+          {
+            "productId": 124,
+            "productName": "Erkek Tişört - Kırmızı",
+            "price": 79.99,
+            "category": "Giyim",
+            "brand": "Huglu"
+          }
+        ],
+        "comparisonDuration": 120000,
+        "decisionMade": true,
+        "selectedProductId": 123,
+        "comparisonTimestamp": 1757755560067
+      },
+      "timestamp": "2025-09-13T09:28:00.067Z",
+      "date": "2025-09-13",
+      "time": "12:28:00"
+    },
+    {
+      "id": 1757755680068.1982,
+      "userId": 1,
+      "activityType": "performance_metrics",
+      "activityData": {
+        "userId": 1,
+        "screenName": "ProductDetail",
+        "loadTime": 1200,
+        "renderTime": 800,
+        "memoryUsage": 45.2,
+        "networkLatency": 150,
+        "errorCount": 0,
+        "crashCount": 0,
+        "timestamp": 1757755680068
+      },
+      "timestamp": "2025-09-13T09:28:00.068Z",
+      "date": "2025-09-13",
+      "time": "12:28:00"
+    },
+    {
+      "id": 1757755680071.1516,
+      "userId": 1,
+      "activityType": "network_metrics",
+      "activityData": {
+        "userId": 1,
+        "requestUrl": "/api/products/123",
+        "requestMethod": "GET",
+        "responseTime": 250,
+        "responseSize": 2048,
+        "statusCode": 200,
+        "networkType": "wifi",
+        "connectionSpeed": "fast",
+        "timestamp": 1757755680070
+      },
+      "timestamp": "2025-09-13T09:28:00.071Z",
+      "date": "2025-09-13",
+      "time": "12:28:00"
+    },
+    {
+      "id": 1757755680072.1428,
+      "userId": 1,
+      "activityType": "content_share",
+      "activityData": {
+        "userId": 1,
+        "contentType": "product",
+        "contentId": "123",
+        "contentTitle": "Erkek Tişört - Mavi",
+        "sharePlatform": "instagram",
+        "shareMethod": "button",
+        "shareTimestamp": 1757755680072,
+        "shareSuccess": true
+      },
+      "timestamp": "2025-09-13T09:28:00.072Z",
+      "date": "2025-09-13",
+      "time": "12:28:00"
+    },
+    {
+      "id": 1757755680073.5828,
+      "userId": 1,
+      "activityType": "product_review",
+      "activityData": {
+        "userId": 1,
+        "productId": 123,
+        "productName": "Erkek Tişört - Mavi",
+        "reviewType": "rating",
+        "rating": 5,
+        "reviewText": "Çok kaliteli ve rahat bir tişört. Kesinlikle tavsiye ederim!",
+        "reviewLength": 50,
+        "hasPhotos": true,
+        "hasVideos": false,
+        "reviewTimestamp": 1757755680073,
+        "helpfulVotes": 3,
+        "reportCount": 0
+      },
+      "timestamp": "2025-09-13T09:28:00.073Z",
+      "date": "2025-09-13",
+      "time": "12:28:00"
+    },
+    {
+      "id": 1757755680075.99,
+      "userId": 1,
+      "activityType": "content_consumption",
+      "activityData": {
+        "userId": 1,
+        "contentId": "blog_001",
+        "contentType": "blog",
+        "contentTitle": "Yaz Modası Rehberi",
+        "contentCategory": "Fashion",
+        "consumptionType": "read",
+        "consumptionDuration": 300,
+        "consumptionPercentage": 85,
+        "interactionCount": 2,
+        "contentTimestamp": 1757755680074
+      },
+      "timestamp": "2025-09-13T09:28:00.075Z",
+      "date": "2025-09-13",
+      "time": "12:28:00"
+    }
+  ]
+}

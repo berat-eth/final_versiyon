@@ -1,0 +1,135 @@
+# Cursor Workspace Rules for Huğlu Outdoor
+
+project:
+  name: "huglu-outdoor"
+  default_language: "tr"
+  goals:
+    - Tüm API istekleri uzak sunucuya gitsin
+    - Arama/okuma işlemlerini paralel çalıştır
+    - Kısa, net, Türkçe iletişim; sadece gerekli yerlerde kod blokları
+
+communication:
+  responses:
+    language: "tr"
+    style:
+      concise: true
+      markdown:
+        use_h1: false
+        bullets_as_headings: true
+        code_block_policy:
+          - Sadece ilgili snippet’leri blokta göster
+          - Depodaki kodu alıntılarken yol ve aralık ver
+  status_updates:
+    enabled: true
+    min_frequency: "before_and_after_tool_batches"
+    content: "1-2 cümle; ne yapıldı/ne yapılacak; riskler varsa belirt"
+  summaries:
+    enabled: true
+    rules:
+      - Kısa ve yüksek sinyal
+      - Dosya ve etki düzeyiyle değişiklikleri özetle
+
+tools:
+  selection:
+    search_primary: "codebase_search"
+    search_secondary: "grep"
+    read_file_first: true
+    web_search:
+      allowed: true
+      default: false
+      use_cases:
+        - Güncel bilgi/sürüm değişikliği doğrulama
+  execution:
+    parallelize_reads: true
+    parallelize_searches: true
+    limit_parallel: 5
+    non_interactive_flags: true
+    no_pagers: true
+
+code_changes:
+  indentation:
+    preserve_style: true
+  formatting:
+    avoid_unrelated_reformat: true
+    line_wrapping: conservative
+  comments:
+    add_only_when_valuable: true
+    prefer_explanatory_over_obvious: true
+  typing:
+    explicit_in_public_apis: true
+  errors:
+    lint_after_edit: true
+    fix_clear_issues: true
+    max_fix_loops_per_file: 3
+
+citations:
+  in_repo:
+    method: "fenced_block_with start:end:path"
+    require_at_least_one_line: true
+  new_code:
+    method: "language-tag fenced blocks"
+  rules:
+    no_inline_line_numbers: true
+
+api_policy:
+  base_url_source: "src/utils/api-config.ts"
+  enforce_remote:
+    prefer: "https://api.zerodaysoftware.tr/api"
+    allow_local_dev: false
+  health_checks:
+    timeout_ms: 2000
+    path: "/health"
+  headers:
+    include_content_type: true
+    include_accept_json: true
+  secrets:
+    never_log_keys: true
+    never_commit_secrets: true
+
+security:
+  guardrails:
+    - Kaynaklardaki kimlik bilgilerini maskele
+    - Hassas içerikleri alıntılarken redakte et
+
+todos:
+  usage:
+    create_for_multi_step: true
+    keep_single_step_light: true
+  states:
+    - pending
+    - in_progress
+    - completed
+    - cancelled
+  rules:
+    single_in_progress: true
+    update_immediately_on_progress: true
+
+editing_flow:
+  - discovery_pass_with_search
+  - plan_as_todos_if_non_trivial
+  - batch_parallel_reads
+  - implement_edits_preserving_style
+  - run_lints_and_fix_clear_issues
+  - summarize_changes_concisely
+
+commands:
+  shell:
+    default_cwd: project_root
+    pass_non_interactive_flags: true
+    background_long_running: true
+
+performance:
+  batching:
+    read_files: true
+    searches: true
+  avoid:
+    - gereksiz tekrar okuma
+    - ardışık yapılabilecek paralel işler
+
+fallbacks:
+  apply_patch_retries: 3
+  then_use_edit_file: true
+
+notes:
+  - Kullanıcı öncelikleri: Türkçe yanıt; API istekleri uzak sunucuya
+  - Kod örnekleri kısa ve odaklı olmalı
